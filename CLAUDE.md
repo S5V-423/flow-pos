@@ -16,6 +16,7 @@ An **offline-first, Arabic (RTL) sales & inventory management system** for a caf
 - `docs/prd.md` — English markdown distillation of the PRD.
 - `docs/plan.md` — implementation plan, confirmed decisions, and tech stack.
 - `docs/roadmap.md` — the 4 delivery phases and what belongs in each.
+- `docs/design.md` — the design system (tokens, type, components, print templates). All UI work follows it; extend it before deviating.
 
 If code and docs ever disagree, raise it — do not silently pick one.
 
