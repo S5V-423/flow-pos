@@ -3,17 +3,41 @@
 > The application design system, extending the visual identity established in `PRD-نظام-المبيعات-والمخزون-v3.1.html`.
 > Authoritative for all UI work. If a screen needs something this file doesn't define, extend this file first, then build.
 
-## 1. Identity & Principles
+## 1. Identity
 
-**The feel:** a calm, trustworthy counter tool — warm paper, jade ink, copper accents, receipt-paper motifs. It should feel like well-organized shop paperwork that happens to be digital, not like a SaaS dashboard.
+**Paper ledger.** The app feels like impeccably organized shop paperwork that happens to be digital: warm paper surfaces, jade ink, copper annotations, receipts and stamps. Calm, trustworthy, fast — never a flashy SaaS dashboard.
 
-1. **Arabic-first, RTL always.** The UI is written and laid out in Arabic. LTR appears only inside isolated data fragments (numbers, codes, barcodes).
-2. **Speed over spectacle.** The POS screen is used hundreds of times a day; a full sale must take under 60 seconds. Every interaction optimizes for the next tap, not for delight.
-3. **Money and stock are monospaced.** Every quantity, price, balance, and document number renders in the mono face with tabular digits — columns of numbers always align.
-4. **State reads at a glance.** Stock levels, shift status, and debt states are encoded in shape + color (badges, pills, stripes), never color alone.
-5. **The document is the brand.** Invoices, receipts, quotes, and statements share one identity: the ticket motif, the QR, the jade total.
+1. **Arabic-first, RTL always.** LTR appears only inside isolated data fragments (numbers, codes, barcodes).
+2. **Speed over spectacle.** A full cash sale in under 60 seconds; every interaction optimizes for the next tap.
+3. **Money and stock are monospaced.** Every quantity, price, balance, and document number renders in the mono face with tabular digits.
+4. **State reads at a glance** — shape + words + color, never color alone.
+5. **Documents are always paper.** Invoices, receipts, quotes, and statements render on light paper in *both* themes — a receipt is white even at night.
 
-## 2. Color
+## 2. Signature Elements
+
+Three signatures, one family — each lives in exactly one place. Nothing else in the UI borrows them; that discipline is what keeps them meaningful.
+
+### 2.1 The live receipt cart (POS screen only)
+
+The POS cart **is a thermal receipt being written**. A paper-white column (`--paper`) with the business name at top; each added item appends as a printed mono line (name · qty · amount) separated by dashed hairlines; the running total sits at the bottom above a perforated tear-off edge. Adding an item slides the new line in from above the total (150ms, ease-out) — the cashier watches the receipt print itself. Quantity steppers and line removal live on each line; the confirm button sits directly under the tear-off edge. In dark theme the receipt stays paper-white against the dark room — like a real receipt under counter light. `prefers-reduced-motion`: lines appear without animation.
+
+### 2.2 Rubber-stamp states (documents & confirmation moments only)
+
+Document status renders as an **angled ink stamp**: Cairo 800 text inside a 2.5px border, rotated 8°, at 85% opacity.
+
+| Stamp | Color | Where |
+|---|---|---|
+| مدفوعة / مكتملة | jade | Paid invoices, closed balanced shifts |
+| مسودة / معلّقة / دفعة جزئية | copper | Drafts, pending quotes, partial payments |
+| ملغاة / متأخرة | alert | Cancelled documents, overdue receivables |
+
+Placement: top-start corner of document previews and A4 prints (prints use the same stamp in grayscale-safe black outline when not color-printed). **The confirmation moment:** when a sale is confirmed, the مدفوعة stamp presses onto the receipt — scale 1.2→1 with a 200ms settle, once. This is the app's single orchestrated animation. Stamps never appear in tables or lists — those use badges (§7).
+
+### 2.3 Perforated ticket edges (documents only)
+
+The zig-zag ticket edge marks anything that is a document: the receipt cart's tear-off, invoice/quote previews, and printed templates. Never on ordinary cards, KPIs, or panels.
+
+## 3. Color
 
 Tokens are CSS custom properties on `:root`; dark values are redefined under `@media (prefers-color-scheme: dark)` and again under `[data-theme="dark"]` / `[data-theme="light"]` so the in-app toggle always wins. Components use tokens only — never raw hex.
 
@@ -22,147 +46,164 @@ Tokens are CSS custom properties on `:root`; dark values are redefined under `@m
 | Token | Light | Dark | Role |
 |---|---|---|---|
 | `--bg` | `#F3F4EF` | `#15110D` | App background (olive-tinted paper / coffee-black) |
-| `--surface` | `#FFFFFF` | `#1E1911` | Cards, panels, tables, documents |
+| `--surface` | `#FFFFFF` | `#1E1911` | Cards, panels, tables |
 | `--surface-2` | `#EAEBE3` | `#241E15` | Nested fills: table headers, KPI tiles, input wells |
+| `--paper` | `#FFFEF8` | `#FFFEF8` | **Documents & receipt cart — identical in both themes** |
+| `--ink` | `#1C1B16` | `#1C1B16` | Text on `--paper` — documents are ink on paper, always |
 | `--text` | `#181A15` | `#F2EFE6` | Primary text |
 | `--text-muted` | `#5B5F53` | `#A79E8A` | Secondary text, labels, captions |
 | `--border` | `#DBDCD1` | `#332B1F` | Hairlines, card borders, dividers |
 | `--jade` | `#0E8F68` | `#2BC792` | Primary: confirm, money-in, success, active nav |
-| `--jade-2` | `#0B6E51` | `#3FE0AA` | Jade hover/pressed; gradient partner |
-| `--copper` | `#B5711E` | `#E0A44C` | Secondary accent: warnings, low stock, credit/debt, eyebrows |
+| `--jade-2` | `#0B6E51` | `#3FE0AA` | Jade hover/pressed |
+| `--copper` | `#B5711E` | `#E0A44C` | Secondary: warnings, low stock, credit/debt, eyebrows |
 | `--copper-2` | `#8F5A16` | `#F0BE73` | Copper hover/pressed |
-| `--alert` | `#C1421A` | `#FF7A4D` | Destructive, stock-out, cash shortage, overdue |
+| `--alert` | `#C1421A` | `#FF7A4D` | Destructive, stock-out, shortage, overdue |
 
 ### Semantic mapping (do not invent new colors)
 
-- **Success / money-in / in-stock** → jade
-- **Warning / low stock / pending / credit balance** → copper
-- **Danger / stock-out / delete / shortage / overdue** → alert
-- **Neutral info** → `--text-muted` on `--surface-2`
+- **Success / money-in / in-stock** → jade · **Warning / low stock / pending / credit** → copper · **Danger / stock-out / delete / overdue** → alert · **Neutral info** → muted on `--surface-2`.
 - Cash **variance**: surplus = copper (investigate), shortage = alert, balanced = jade.
+- Stamps on `--paper` use the *light-theme* ink values (`#0E8F68` / `#B5711E` / `#C1421A`) in both themes — ink doesn't glow.
 
 ### Usage rules
 
-- Jade is the only color for primary buttons. One primary action per screen region.
+- **Quiet chrome:** sidebar, headers, and nav stay neutral paper; jade appears only on actions, totals, active states, and money-in. One jade-filled primary action per screen region.
 - Copper never sits on jade or vice versa; they meet only across a neutral.
 - Tinted fills derive from tokens via `color-mix(in srgb, var(--jade) 12%, transparent)` — no hand-picked pastels.
-- White text on jade/alert buttons; `--text` on copper fills in dark theme (copper lightens there).
-- Both themes ship every component. Dark is not an inversion: shadows deepen (`rgba(0,0,0,.55)`), accents brighten (values above), and paper motifs keep their warm hue.
+- Dark theme is designed, not inverted: shadows deepen (`rgba(0,0,0,.55)`), accents brighten, paper warmth stays. Every component ships in both themes; theme choice persists per device.
 
-## 3. Typography
+## 4. Typography
 
-All fonts are **bundled locally as woff2** (`/public/fonts/`) via `@font-face` — the offline rule forbids CDN fonts.
+All fonts **bundled locally as woff2** (`/public/fonts/`) via `@font-face` — the offline rule forbids CDN fonts. Verify zero network font requests; silent fallback to system Arabic fonts is a bug.
 
 | Role | Face | Weights | Usage |
 |---|---|---|---|
-| Display | **Cairo** | 600–900 | Screen titles, card headings, totals labels, buttons that confirm money |
-| Body | **Tajawal** | 300, 400, 500, 700 | Everything readable: body, forms, table cells, nav |
-| Data | **JetBrains Mono** | 400, 500, 700 | Numbers, prices, quantities, barcodes, invoice/QR refs, dates in tables |
+| Display | **Cairo** | 600–900 | Screen titles, card headings, stamps, money-confirm buttons |
+| Body | **Tajawal** | 300–700 | Everything readable: body, forms, tables, nav |
+| Data | **JetBrains Mono** | 400–700 | Numbers, prices, quantities, barcodes, refs, receipt lines |
 
 ### Type scale (rem, base 16px)
 
 | Token | Size | Face/weight | Use |
 |---|---|---|---|
-| `display` | 1.75–2.25 (clamp) | Cairo 800 | Screen title (one per screen) |
+| `display` | clamp 1.75–2.25 | Cairo 800 | Screen title (one per screen) |
 | `h2` | 1.25 | Cairo 800 | Section/card group |
 | `h3` | 1 | Cairo 700 | Card title |
-| `body` | 0.9375 (15px) | Tajawal 400 | Default |
+| `body` | 0.9375 | Tajawal 400 | Default |
 | `label` | 0.8125 | Tajawal 500 | Form labels, table headers |
 | `caption` | 0.75 | Tajawal 400 muted | Help text, timestamps |
 | `eyebrow` | 0.75 | Mono 500, `letter-spacing:.08em`, copper | Section markers, doc metadata |
 | `money-lg` | 1.5 | Mono 700 jade | Cart total, KPI values |
 | `money` | 0.875 | Mono 500 | Prices in lists/tables |
+| `stamp` | 1.125 | Cairo 800, `letter-spacing:.04em` | Stamp text only |
 
 ### Rules
 
-- Arabic body text: `line-height: 1.7`. Headings: `1.35` with `text-wrap: balance`.
-- **Numerals are Western digits (0–9)**, never Arabic-Indic (٠١٢) — matches the PRD documents and scanner output.
-- Every numeric fragment: `font-family` mono, `direction: ltr`, `unicode-bidi: isolate`, `font-variant-numeric: tabular-nums`. Provide a single utility class (`.mono`) and use it everywhere digits appear.
-- **Currency format:** `1,067.750 د.ل` — thousands separator, always exactly 3 decimals, currency suffix outside the LTR isolate. Formatting lives in one shared function; no ad-hoc `toFixed`.
-- Running text max width: `65ch`.
+- Arabic body `line-height: 1.7`; headings `1.35` with `text-wrap: balance`; running text max `65ch`.
+- **Numerals are Western digits (0–9)**, never Arabic-Indic — matches documents and scanner output.
+- Every numeric fragment: mono face, `direction: ltr`, `unicode-bidi: isolate`, `font-variant-numeric: tabular-nums` — one shared `.mono` utility.
+- **Currency format:** `1,067.750 د.ل` — thousands separator, exactly 3 decimals, suffix outside the LTR isolate. One shared formatting function; no ad-hoc `toFixed`.
 
-## 4. Space, Shape, Elevation
+## 5. Space, Shape, Elevation
 
-- **Spacing scale:** 4px base — `4, 8, 12, 16, 20, 24, 32, 40, 56`. Siblings are spaced with flex/grid `gap`, not margins.
-- **Radius:** `--radius: 14px` cards/modals · `10px` buttons/inputs · `999px` pills/chips · `4px` documents (paper is square-ish).
-- **Borders:** 1px `--border` on every surface sitting on `--bg`. Dashed borders are reserved for document dividers and "automatic step" indicators.
-- **Shadow:** one level only — `--shadow: 0 10px 30px -12px rgba(20,20,10,.18)` (dark: `0 14px 34px -12px rgba(0,0,0,.55)`). Used by modals, popovers, the invoice preview, and primary-button hover. Tables and cards rely on borders, not shadows.
-- **Ticket motif:** documents and document-like cards (invoice preview, quote, receipt) get the perforated zig-zag edge (as in the PRD hero) — reserved for documents only, so the motif keeps meaning.
+- **Spacing scale:** 4px base — `4, 8, 12, 16, 20, 24, 32, 40, 56`. Siblings spaced with flex/grid `gap`, not margins.
+- **Radius:** `14px` cards/modals · `10px` buttons/inputs · `999px` pills/chips · `4px` documents (paper is square-ish).
+- **Borders:** 1px `--border` on surfaces over `--bg`. Dashed borders are reserved for receipt/document dividers and "automatic step" indicators.
+- **Shadow:** one level — `0 10px 30px -12px rgba(20,20,10,.18)` (dark `0 14px 34px -12px rgba(0,0,0,.55)`) for modals, popovers, the receipt cart, and primary-button hover. Cards and tables rely on borders.
 
-## 5. Layout & Navigation
+## 6. Density Modes & Layout
 
-- **Desktop (≥900px):** fixed sidebar 272px on the right (RTL start), content max `980px` for forms/reports; POS screen uses full width. Topbar only on mobile.
-- **Tablet/mobile (<900px):** fixed topbar (58px, blurred surface) + drawer nav; safe-area insets respected; POS cart becomes a bottom sheet with a persistent total bar.
-- **Grid patterns:** KPI rows `repeat(auto-fit, minmax(140px, 1fr))`; product grid on POS `minmax(150px, 1fr)`; forms are single-column.
-- **POS screen anatomy** (the most-used screen): search/scan field permanently focused (scanner-first) at top; product grid center; cart panel on the left (RTL end) with total, payment pills (نقدي/بطاقة/آجل), and one jade confirm button. Nothing on this screen requires scrolling to complete a cash sale.
-- Wide tables live inside `overflow-x: auto` wrappers with sticky first column on mobile; the page body never scrolls horizontally.
+Two density contexts, set once via `data-density` on the screen container — components read tokens, never hardcode sizes:
 
-## 6. Components
+| Token | `touch` (POS, shifts, PIN, stocktake counting) | `compact` (back-office tables, reports, settings) |
+|---|---|---|
+| Control height | 48px (payment/confirm 56px) | 36px |
+| Base font | 15px | 13.5px |
+| Table row padding | 14px | 8px |
+| Grid gap | 16px | 10px |
 
-**Buttons** — min-height 44px (POS quick-actions 56px). Primary: jade fill, white Cairo 700 text. Secondary: `--surface` + border. Destructive: alert fill, used only in confirm dialogs. Disabled: 45% opacity, no hover motion. Hover: `translateY(-1px)` + shadow; pressed: none.
+- **Desktop (≥900px):** fixed neutral sidebar 272px at the RTL start; content max `980px` for forms/reports; POS uses full width.
+- **Tablet/mobile (<900px):** fixed topbar (58px, blurred surface) + drawer nav; safe-area insets respected. On POS, the receipt cart becomes a bottom sheet with a persistent total bar (mono total + item count always visible).
+- **POS anatomy:** scan/search field permanently focused at top (scanner-first; refocuses after every action); product grid `minmax(150px,1fr)` center; receipt cart at the RTL end. A cash sale completes without scrolling.
+- Wide tables live in `overflow-x:auto` wrappers, sticky first column on mobile; the page body never scrolls horizontally. KPI rows: `repeat(auto-fit, minmax(140px,1fr))`, max 4.
 
-**Inputs** — `--surface` field on `--surface-2` well? No: fields are `--surface` with `--border`, focus ring `2px var(--jade)` offset 2px. Labels above, Tajawal 500. Errors: alert border + explanatory text below ("what went wrong + how to fix"), never color alone. Numeric inputs get `.mono` and LTR isolation.
+## 7. Components
 
-**Chips / filter pills** — pill radius, `--surface` + border; active = jade fill white text; counts inside chips in mono 11px.
+**Buttons** — heights per density mode. Primary: jade fill, white Cairo 700. Secondary: `--surface` + border. Destructive: alert fill, only in confirm dialogs. Disabled: 45% opacity, no motion. Hover `translateY(-1px)` + shadow; pressed none.
 
-**Status badges** (stock, debt, shift, document status) — pill, 10.5px mono, 1px colored border + colored text on transparent: jade = متوفر/مفتوحة/مدفوعة، copper = منخفض/آجل/مسودة، alert = نافذ/متأخرة/ملغاة. Filled variants only in tables' first-glance column.
+**Inputs** — `--surface` field, `--border`, focus ring `2px var(--jade)` offset 2px. Labels above, Tajawal 500. Errors: alert border + text that says what happened and what to do. Numeric inputs get `.mono` + LTR isolation.
 
-**KPI tiles** — `--surface-2` fill, mono value 18px jade (alert if bad), 11.5px muted label. Never more than 4 in a row.
+**Chips / filters** — pill, `--surface` + border; active = jade fill, white text; counts in mono 11px.
 
-**Tables** — header row `--surface-2` Cairo 700 13px; rows divided by `--border`; numeric columns left-aligned (LTR numbers in RTL table), `.mono`; row hover `--surface-2`; first column is the entity name in `--text`, rest muted.
+**Badges** (lists & tables — stamps are for documents) — pill, 10.5px mono, 1px colored border + colored text: jade = متوفر / مفتوحة / مدفوعة، copper = منخفض / آجل / مسودة، alert = نافذ / متأخرة / ملغاة.
 
-**Modals & sheets** — `--surface`, radius 14, shadow, backdrop `rgba(0,0,0,.4)`; mobile: bottom sheet. One primary action, ESC/backdrop closes (except mid-payment).
+**KPI tiles** — `--surface-2`, mono value 18px (jade, or alert when bad), 11.5px muted label.
 
-**Toasts** — jade fill (alert for failures), bottom center, Cairo 700 13.5px, auto-dismiss 3s. Copy states the outcome: "تم حفظ الفاتورة #INV-2026-00231".
+**Tables** — header `--surface-2` Cairo 700 13px; numeric columns `.mono`, aligned; row hover `--surface-2`; first column entity name in `--text`, rest muted.
 
-**Stepper (quantity)** — 40×40px buttons, mono quantity between, long-press to repeat.
+**Modals & sheets** — `--surface`, radius 14, shadow, backdrop `rgba(0,0,0,.4)`; bottom sheet on mobile. One primary action; ESC/backdrop closes except mid-payment.
 
-**PIN pad** — 3×4 grid of 64px keys, mono digits, appears as a modal for user switch / manager override; override reason shown on the same dialog.
+**Toasts** — jade fill (alert on failure), bottom center, Cairo 700 13.5px, 3s.
+
+**Stepper** — buttons per density; mono quantity; long-press repeats.
+
+**PIN pad** — 3×4 grid, 64px keys, mono digits; modal for user switch and manager overrides; the override reason is stated on the same dialog.
 
 **Empty states** — one muted sentence + one action button. No illustrations in V1.
 
-## 7. Interaction Rules
+## 8. Voice & Microcopy
 
-- Touch targets ≥44×44px everywhere; ≥56px on POS confirm/payment controls.
-- The barcode field regains focus after every scan/action on POS (USB scanners type + Enter).
-- Destructive and money-affecting actions confirm with the amount restated in the dialog ("إلغاء فاتورة بقيمة 135.750 د.ل؟").
-- Manager-override moments (discount above cap, stock override) use the PIN pad inline — never navigate away mid-sale.
-- Keyboard: full tab order, visible focus ring, Enter confirms the sale from the cart, shortcuts listed in Settings.
+Words are design material. Written in Arabic, from the cashier's side of the counter:
+
+- **Controls name the action + object:** «تأكيد الفاتورة»، «إغلاق الوردية»، «حفظ المنتج» — never «إرسال» or «موافق».
+- **The name survives the flow:** the button «تأكيد الفاتورة» produces the toast «تم حفظ الفاتورة INV-2026-00231».
+- **One vocabulary:** فاتورة، عرض سعر، وردية، حركة مخزون، ذمة — fixed terms, never synonyms per screen.
+- **Errors say what and what now, no apology:** «الكمية المتاحة 3 فقط — عدّل الكمية أو اطلب موافقة المدير».
+- **Empty states invite:** «لا منتجات بعد — أضف أول منتج».
+- Confirmations restate the amount: «إلغاء فاتورة بقيمة 135.750 د.ل؟».
+
+## 9. Interaction Rules
+
+- Touch targets ≥44×44px everywhere; ≥56px for POS confirm/payment.
+- Barcode field regains focus after every scan/action (USB scanners type + Enter).
+- Manager overrides (discount above cap, stock override) open the PIN pad inline — never navigate away mid-sale.
+- Full tab order, visible focus, Enter confirms the sale from the cart; shortcuts listed in Settings.
 - Idle lock returns to the PIN screen; the in-progress cart survives the lock.
 
-## 8. Motion
+## 10. Motion
 
-- Durations: 150ms (hover/press), 250ms (drawer, sheet, toast), 350ms (theme cross-fade). Easing `ease` / `ease-out`.
-- Motion communicates state change only: a confirmed sale flashes the total jade→neutral; a stock badge that flips to "منخفض" pulses once. No scroll-triggered reveals, no ambient animation — this is an operated tool.
+- Durations: 150ms hover/press and receipt-line append · 250ms drawer/sheet/toast · 350ms theme cross-fade. Easing `ease-out`.
+- **The stamp press (§2.2) is the only orchestrated moment.** Everything else is quiet state communication; no scroll reveals, no ambient animation.
 - `prefers-reduced-motion: reduce` disables all transitions and animations globally.
 
-## 9. Documents (print)
+## 11. Documents (print)
 
-Shared identity: business logo/name (from Settings) top-start, mono document number + date top-end, dashed hairline dividers, item rows with mono amounts, jade grand total, QR bottom-start, payment-type pill bottom-end.
+Shared identity: logo/name (Settings) top-start, mono doc number + date top-end, dashed dividers, mono amounts, jade grand total (black in print), status stamp when applicable, QR bottom-start, payment pill bottom-end, perforated edge motif.
 
-- **A4 invoice / quotation / statement:** `@page { size: A4; margin: 15mm }`, black-on-white only (no theme tokens in print CSS), Cairo headings ≥11pt, body 10pt, mono amounts 10pt, RTL alignment verified on physical printers (PRD acceptance). Status watermark (ملغاة / مسودة) diagonal at 8% opacity when applicable.
-- **80mm thermal receipt:** width 72mm printable, single column, Tajawal 9pt / mono 9pt, no grays or images except logo in pure black, dashed separators, QR ≥20mm, generous top/bottom feed. Kiosk-print mode: no dialog.
+- **A4 invoice / quotation / statement:** `@page { size: A4; margin: 15mm }`; black-on-white, independent of theme tokens; Cairo headings ≥11pt, body 10pt, mono 10pt; stamps print as black outline unless color-printed; RTL alignment verified on physical printers (PRD acceptance).
+- **80mm thermal receipt:** 72mm printable, single column, Tajawal 9pt / mono 9pt, pure black only, dashed separators, QR ≥20mm, generous feed. Kiosk-print mode — no dialog. The printed receipt and the on-screen receipt cart are visibly the same artifact.
 
-## 10. Charts (Phase 3)
+## 12. Charts (Phase 3)
 
-- Categorical series order: jade → copper → muted olive `#8B907C` → jade-2. Never more than 4 series; beyond that, aggregate.
-- Money axes in mono with 3-decimal tooltips; comparison periods render the older period at 40% opacity of the same hue.
-- Area fills at 12% opacity of the line color; faint `--border` gridlines; emphasized latest point.
-- Semantic exceptions: shortage/negative bars always alert; low-stock always copper.
-- RTL: time axes run right→left (newest at the left edge mirrors LTR convention — keep newest at the *left*, labeled clearly).
+- Series order: jade → copper → muted olive `#8B907C` → jade-2; max 4 series, aggregate beyond.
+- Money axes mono with 3-decimal tooltips; comparison periods at 40% opacity of the same hue.
+- Area fills 12% opacity; faint `--border` gridlines; emphasized latest point.
+- Semantic exceptions: shortage/negative always alert; low-stock always copper.
+- Time axes run newest-at-left, clearly labeled.
 
-## 11. Accessibility
+## 13. Accessibility
 
-- Contrast ≥4.5:1 for text in both themes (the token pairs above pass; verify any new pair).
-- State = shape + text + color, never color alone (badges carry words).
-- Focus visible (`2px` jade outline) on every interactive element.
-- `lang="ar" dir="rtl"` on the root; LTR fragments isolated with `unicode-bidi: isolate` so punctuation never scrambles.
-- Form errors are text, associated via `aria-describedby`.
+- Text contrast ≥4.5:1 in both themes (token pairs above pass; verify any new pair, including on `--paper`).
+- State = shape + words + color, never color alone.
+- Focus visible (2px jade outline) on every interactive element.
+- `lang="ar" dir="rtl"` on the root; LTR fragments isolated so punctuation never scrambles.
+- Form errors associated via `aria-describedby`.
 
-## 12. Implementation Notes
+## 14. Implementation Notes
 
-- Tokens live in one file (`tokens.css` or the Tailwind theme) — the tables above are the source; Tailwind maps them (`bg-surface`, `text-jade`, …). No component may hardcode a hex.
-- Theme mechanism: tokens on `:root` → `@media (prefers-color-scheme: dark)` override → `[data-theme]` override (toggle wins both directions); choice persisted per device in localStorage.
-- Fonts: woff2 subsets (Arabic + Latin for Cairo/Tajawal; Latin for JetBrains Mono) committed to the repo. Verify no network font requests in devtools — a silent fallback to system Arabic fonts is a bug.
-- Print CSS is its own stylesheet, black-and-white, independent of theme tokens.
-- The PRD HTML file doubles as a living reference for the identity (invoice mockup, chips, tickets, KPI tiles) — when in doubt, match it.
+- Tokens live in one file (`tokens.css` / Tailwind theme) mapped as `bg-surface`, `text-jade`, etc. No component hardcodes a hex or a control height.
+- Theme mechanism: `:root` tokens → `prefers-color-scheme` override → `[data-theme]` override (toggle wins both directions); persisted in localStorage per device.
+- Density mechanism: `data-density="touch|compact"` on screen containers redefines the density tokens of §6.
+- Fonts: woff2 subsets (Arabic + Latin) committed to the repo.
+- Print CSS is its own stylesheet, black-and-white, theme-independent.
+- The PRD HTML remains a living reference for the identity — when in doubt, match it.
