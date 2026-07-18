@@ -25,6 +25,7 @@ type CartItem = {
   product: Product;
   quantity: number;
   unitPrice: number;
+  serialNumber?: string;
 };
 
 type Sale = {
@@ -49,6 +50,7 @@ type Sale = {
     unitPrice: number;
     total: number;
     baseUnit: string;
+    serialNumber?: string;
   }>;
 };
 
@@ -99,6 +101,15 @@ type Backup = {
 
 // SVG Icons
 const Icons = {
+  Home: () => (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+      />
+    </svg>
+  ),
   Dashboard: () => (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path
@@ -258,7 +269,7 @@ function formatLYD(millis: number): string {
 export function App() {
   const today = new Date().toISOString().split('T')[0] || '';
   const [theme, setThemeState] = useState<Theme>(() => currentTheme());
-  const [activeTab, setActiveTab] = useState('Dashboard');
+  const [activeTab, setActiveTab] = useState('Home');
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('pos-token'));
   const [currentUser, setCurrentUser] = useState<any>(() => {
     const saved = localStorage.getItem('pos-user');
@@ -359,6 +370,16 @@ export function App() {
     role: 'sales' as 'manager' | 'sales',
   });
 
+  // Edit User Overlay
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editUserForm, setEditUserForm] = useState({
+    password: '',
+    pin: '',
+    role: 'sales' as 'manager' | 'sales',
+    active: true,
+  });
+
   // Toast System
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'alert'>('success');
@@ -375,7 +396,7 @@ export function App() {
   // Fetch settings & health
   const loadBaseData = () => {
     fetch('/api/settings')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then(setSettingsData)
       .catch(() => {});
   };
@@ -385,38 +406,46 @@ export function App() {
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
 
+    const handleFetchResponse = (res: Response, fallback: any = []) => {
+      if (res.status === 401) {
+        handleLogout();
+        throw new Error('Unauthorized');
+      }
+      return res.ok ? res.json() : fallback;
+    };
+
     fetch('/api/products', { headers })
-      .then((r) => r.json())
+      .then((r) => handleFetchResponse(r, []))
       .then(setProductsList)
       .catch(() => {});
 
     fetch('/api/sales', { headers })
-      .then((r) => r.json())
+      .then((r) => handleFetchResponse(r, []))
       .then(setSalesList)
       .catch(() => {});
 
     fetch('/api/shifts/active', { headers })
-      .then((r) => r.json())
-      .then((data) => setActiveShift(data.active))
+      .then((r) => handleFetchResponse(r, { active: null }))
+      .then((data) => setActiveShift(data?.active ?? null))
       .catch(() => {});
 
     fetch('/api/shifts', { headers })
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => handleFetchResponse(r, []))
       .then(setShiftsList)
       .catch(() => {});
 
     fetch('/api/expenses', { headers })
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => handleFetchResponse(r, []))
       .then(setExpensesList)
       .catch(() => {});
 
     fetch('/api/users', { headers })
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => handleFetchResponse(r, []))
       .then(setUsersList)
       .catch(() => {});
 
     fetch('/api/backup/list', { headers })
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => handleFetchResponse(r, []))
       .then(setBackupsList)
       .catch(() => {});
   };
@@ -448,6 +477,10 @@ export function App() {
         },
         body: JSON.stringify(body),
       });
+      if (response.status === 401) {
+        handleLogout();
+        throw new Error('انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول');
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || data.error || 'حدث خطأ غير متوقع');
@@ -530,6 +563,27 @@ export function App() {
     }
   };
 
+  // Edit User (Manager Only)
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    const res = await apiCall(`/api/users/${editingUser.id}`, 'PUT', {
+      password: editUserForm.password,
+      pin: editUserForm.pin,
+      role: editUserForm.role,
+      active: editUserForm.active,
+    });
+    if (res.success) {
+      triggerToast('تم تحديث بيانات المستخدم بنجاح');
+      setShowEditUserModal(false);
+      setEditingUser(null);
+      setEditUserForm({ password: '', pin: '', role: 'sales', active: true });
+      refreshAllData();
+    } else {
+      triggerToast(res.error || 'فشل تحديث المستخدم', 'alert');
+    }
+  };
+
   // POS operations
   const addToCart = (product: Product) => {
     const existing = cart.find((item) => item.product.id === product.id);
@@ -598,6 +652,11 @@ export function App() {
         },
         body: JSON.stringify({ pin: checkoutOverridePin, reason: overrideModalReason }),
       });
+      if (r.status === 401) {
+        handleLogout();
+        triggerToast('انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول', 'alert');
+        return;
+      }
       const res = await r.json();
       if (!r.ok) {
         triggerToast(res.message || 'رمز الموافقة غير صحيح', 'alert');
@@ -624,6 +683,7 @@ export function App() {
       productId: i.product.id,
       quantity: i.quantity,
       unitPrice: i.unitPrice,
+      serialNumber: i.serialNumber,
     }));
 
     // If discount exceeds 10%, prompt for PIN override beforehand if not manager
@@ -658,11 +718,20 @@ export function App() {
 
       // Load detailed invoice and show printing overlay
       fetch(`/api/sales/${res.data.id}`, { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.json())
+        .then((r) => {
+          if (r.status === 401) {
+            handleLogout();
+            throw new Error('Unauthorized');
+          }
+          return r.ok ? r.json() : null;
+        })
         .then((invoice) => {
-          setPrintingSale(invoice);
-          setShowPrintModal(true);
-        });
+          if (invoice) {
+            setPrintingSale(invoice);
+            setShowPrintModal(true);
+          }
+        })
+        .catch(() => {});
 
       refreshAllData();
     } else {
@@ -894,8 +963,8 @@ export function App() {
     ...Array.from(new Set(productsList.map((p) => p.category.toUpperCase()))),
   ];
 
-  // Login view if not logged in
-  if (!token) {
+  // Login view if not logged in or user data is missing
+  if (!token || !currentUser) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-surface-2 p-6" dir="rtl">
         <div className="w-full max-w-[420px] rounded-card border border-line bg-surface p-8 shadow-card">
@@ -971,13 +1040,98 @@ export function App() {
     );
   }
 
+  // Main Selection Grid View (Home)
+  if (activeTab === 'Home') {
+    const tabsList = [
+      { id: 'Dashboard', label: 'لوحة التحكم', desc: 'إحصائيات المبيعات، الأرباح، وأداء المتجر اليومي والشهري', icon: Icons.Dashboard, managerOnly: true },
+      { id: 'POS', label: 'نقطة البيع (الكاشير)', desc: 'تسجيل المبيعات المباشرة وإصدار فواتير كاش وبطاقة', icon: Icons.POS, managerOnly: false },
+      { id: 'Products', label: 'المنتجات والمخازن', desc: 'إدارة جرد البضائع والمعدات ومتابعة حالة المخازن', icon: Icons.Products, managerOnly: false },
+      { id: 'Shifts', label: 'الورديات والخزينة', desc: 'متابعة الورديات، المبالغ المستلمة، وتسجيل المصروفات', icon: Icons.Shifts, managerOnly: false },
+      { id: 'Reports', label: 'التقارير المالية', desc: 'سجل الفواتير وتفاصيل المبيعات والأرباح والضرائب', icon: Icons.Reports, managerOnly: true },
+      { id: 'Settings', label: 'الإعدادات العامة', desc: 'تهيئة اسم المحل، الهاتف، نسبة الضريبة، والنسخ الاحتياطية', icon: Icons.Settings, managerOnly: true },
+    ].filter((t) => !t.managerOnly || currentUser.role === 'manager');
+
+    return (
+      <div className="min-h-dvh bg-surface-2 flex flex-col items-center justify-start py-12 px-6 sm:px-8 select-none font-display overflow-y-auto" dir="rtl">
+        <div className="w-full max-w-[1000px] flex flex-col gap-8">
+          {/* Header */}
+          <div className="flex justify-between items-center pb-6 border-b border-line">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[14px] bg-jade font-mono text-xl font-bold text-white shadow-md">
+                POS
+              </div>
+              <div>
+                <h1 className="font-display text-3xl font-extrabold text-text">
+                  {settingsData?.businessName ?? 'منظومة مستلزمات المقاهي والمطاعم'}
+                </h1>
+                <p className="text-sm text-muted">اختر القسم الذي تريد الدخول إليه للبدء بالعمل</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="text-left font-display">
+                <div className="text-xs text-muted text-left">المستخدم الحالي:</div>
+                <div className="text-sm font-bold text-text text-left">{currentUser.username}</div>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${currentUser.role === 'manager' ? 'bg-jade/10 text-jade border border-jade/30' : 'bg-copper/10 text-copper border border-copper/30'}`}>
+                {currentUser.role === 'manager' ? 'مدير النظام' : 'بائع الكاشير'}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="mr-3 h-10 w-10 flex items-center justify-center rounded-full border border-red-500/20 bg-red-500/5 text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                title="تسجيل الخروج"
+              >
+                <Icons.Power />
+              </button>
+            </div>
+          </div>
+
+          {/* Grid Selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
+            {tabsList.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex flex-col text-right p-6 bg-surface border border-line rounded-card shadow-card hover:border-jade hover:-translate-y-1 transition-all cursor-pointer group"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-[12px] bg-surface-2 text-muted group-hover:bg-jade/10 group-hover:text-jade transition-colors mb-5">
+                  <tab.icon />
+                </div>
+                <h3 className="font-display text-lg font-extrabold text-text group-hover:text-jade transition-colors mb-2">
+                  {tab.label}
+                </h3>
+                <p className="text-xs text-muted font-semibold leading-relaxed">
+                  {tab.desc}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {/* Footer controls (Theme switch, etc.) */}
+          <div className="flex justify-between items-center pt-6 border-t border-line mt-4">
+            <span className="text-xs text-muted mono">
+              التاريخ: {new Date().toLocaleDateString('ar-LY')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setThemeState(toggleTheme())}
+              className="px-6 py-2 rounded-full border border-line bg-surface text-xs font-bold text-muted hover:text-text transition-colors cursor-pointer"
+            >
+              {theme === 'dark' ? 'الوضع الفاتح ☀️' : 'الوضع الليلي 🌙'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid min-h-dvh grid-cols-[272px_1fr] max-[900px]:grid-cols-1" dir="rtl">
       {/* Sidebar Navigation */}
       <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-e border-line bg-surface p-6 min-[901px]:flex">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-jade font-mono text-base font-bold text-white shadow-sm">
-            POS
+          <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-gradient-to-tr from-jade to-copper font-mono text-base font-bold text-white shadow-sm border border-line">
+            FD
           </div>
           <div>
             <div className="font-display text-sm font-extrabold leading-tight">
@@ -1013,14 +1167,24 @@ export function App() {
 
         {/* Navigation Menus */}
         <nav className="flex flex-col gap-1 text-sm">
+          <button
+            onClick={() => setActiveTab('Home')}
+            className="flex items-center gap-3 min-h-11 rounded-[9px] border border-dashed border-jade/40 bg-jade/5 text-jade px-4 py-2 transition-colors cursor-pointer text-right mb-3 hover:bg-jade/10 font-bold"
+          >
+            <Icons.Home />
+            <span>القائمة الرئيسية</span>
+          </button>
+
           {[
-            { id: 'Dashboard', label: 'لوحة التحكم', icon: Icons.Dashboard },
-            { id: 'POS', label: 'نقطة البيع', icon: Icons.POS },
-            { id: 'Products', label: 'المنتجات والمخازن', icon: Icons.Products },
-            { id: 'Shifts', label: 'الورديات والخزينة', icon: Icons.Shifts },
-            { id: 'Reports', label: 'التقارير المالية', icon: Icons.Reports },
-            { id: 'Settings', label: 'الإعدادات العامة', icon: Icons.Settings },
-          ].map((item) => (
+            { id: 'Dashboard', label: 'لوحة التحكم', icon: Icons.Dashboard, managerOnly: true },
+            { id: 'POS', label: 'نقطة البيع', icon: Icons.POS, managerOnly: false },
+            { id: 'Products', label: 'المنتجات والمخازن', icon: Icons.Products, managerOnly: false },
+            { id: 'Shifts', label: 'الورديات والخزينة', icon: Icons.Shifts, managerOnly: false },
+            { id: 'Reports', label: 'التقارير المالية', icon: Icons.Reports, managerOnly: true },
+            { id: 'Settings', label: 'الإعدادات العامة', icon: Icons.Settings, managerOnly: true },
+          ]
+            .filter((item) => !item.managerOnly || currentUser.role === 'manager')
+            .map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
@@ -1058,20 +1222,98 @@ export function App() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="p-6 md:p-8 bg-surface-2 min-h-dvh flex flex-col gap-6 overflow-y-auto">
-        {/* Mobile Header Bar */}
-        <header className="flex items-center justify-between border-b border-line bg-surface p-4 min-[901px]:hidden rounded-card">
-          <span className="font-display font-extrabold text-sm text-jade">نظام مبيعات Cafes</span>
-          <div className="flex gap-2">
+      <main className="p-6 md:p-8 bg-bg min-h-dvh flex flex-col gap-6 overflow-y-auto">
+        {/* Unified Top Header Bar */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border border-line bg-surface/95 backdrop-blur-md p-4 rounded-card shadow-sm">
+          {/* Right Section: App Title & Breadcrumbs */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-gradient-to-tr from-jade to-copper font-mono text-xs font-bold text-white shadow-sm border border-line">
+              FD
+            </div>
+            <div className="flex flex-col">
+              <span className="font-display font-bold text-sm leading-tight text-fg">
+                {settingsData?.businessName ?? 'فلو ديف للمستلزمات'}
+              </span>
+              <div className="flex items-center gap-1.5 text-[10px] text-muted leading-tight mt-0.5">
+                <span>الرئيسية</span>
+                <span>/</span>
+                <span className="text-copper font-bold">
+                  {activeTab === 'Home' ? 'شاشة الاختيار' : activeTab === 'Dashboard' ? 'لوحة التحكم' : activeTab === 'POS' ? 'شاشة الكاشير' : activeTab === 'Products' ? 'إدارة المنتجات' : activeTab === 'Shifts' ? 'الورديات والخزينة' : activeTab === 'Reports' ? 'التقارير والإحصائيات' : 'الإعدادات'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Center Section: Active Shift Status (Desktop Only) */}
+          <div className="hidden sm:flex items-center gap-2">
+            {activeShift ? (
+              <div className="flex items-center gap-2 rounded-full bg-jade/10 text-jade border border-jade/30 px-3.5 py-1 text-xs font-bold shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-jade animate-pulse"></span>
+                <span>الوردية مفتوحة: {activeShift.id}#</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-full bg-alert/10 text-alert border border-alert/30 px-3.5 py-1 text-xs font-bold shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-alert"></span>
+                <span>الوردية مغلقة حالياً</span>
+              </div>
+            )}
+          </div>
+
+          {/* Left Section: User Actions & System controls */}
+          <div className="flex items-center gap-2">
+            {/* User Badge */}
+            <div className="hidden md:flex flex-col items-end pl-2">
+              <span className="text-xs font-bold text-fg leading-none">{currentUser.username}</span>
+              <span className="text-[9px] text-copper font-semibold mt-1">
+                {currentUser.role === 'manager' ? 'مدير النظام' : 'كاشير مبيعات'}
+              </span>
+            </div>
+
+            {/* Fast PIN Switch */}
             <button
-              onClick={() => setShowUserPinModal(true)}
-              className="rounded-full bg-surface-2 p-2 border border-line"
+              onClick={() => {
+                setSwitchPinValue('');
+                setShowUserPinModal(true);
+              }}
+              className="rounded-control bg-surface-2 p-2.5 text-muted hover:text-fg hover:bg-border transition-all border border-line cursor-pointer flex items-center justify-center"
+              title="تبديل سريع للمستخدم"
             >
               <Icons.User />
             </button>
+
+            {/* Settings Shortcut (Visible to managers only) */}
+            {currentUser.role === 'manager' && (
+              <button
+                onClick={() => setActiveTab('Settings')}
+                className="rounded-control bg-surface-2 p-2.5 text-muted hover:text-fg hover:bg-border transition-all border border-line cursor-pointer flex items-center justify-center"
+                title="الإعدادات"
+              >
+                <Icons.Settings />
+              </button>
+            )}
+
+            {/* Theme Toggle (Mobile Quick Access) */}
+            <button
+              onClick={() => setThemeState(toggleTheme())}
+              className="rounded-control bg-surface-2 p-2.5 text-muted hover:text-fg hover:bg-border transition-all border border-line cursor-pointer flex items-center justify-center"
+              title="تغيير المظهر"
+            >
+              {theme === 'dark' ? (
+                <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 7a5 5 0 100 10 5 5 0 000-10z" />
+                </svg>
+              ) : (
+                <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+
+            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="rounded-full bg-red-500/5 p-2 text-red-500 border border-red-500/10"
+              className="rounded-control bg-red-500/5 hover:bg-red-500/10 p-2.5 text-red-500 border border-red-500/20 transition-all cursor-pointer flex items-center justify-center"
+              title="تسجيل الخروج"
             >
               <Icons.Power />
             </button>
@@ -1416,6 +1658,22 @@ export function App() {
                         </div>
                       </div>
 
+                      {item.product.type === 'equipment' && (
+                        <div className="flex items-center gap-2 mt-1 bg-surface-2 p-1.5 rounded border border-line">
+                          <span className="text-[10px] text-muted">الرقم التسلسلي (Serial):</span>
+                          <input
+                            type="text"
+                            value={item.serialNumber || ''}
+                            onChange={(e) => {
+                              const sNo = e.target.value;
+                              setCart(cart.map((c) => c.product.id === item.product.id ? { ...c, serialNumber: sNo } : c));
+                            }}
+                            placeholder="أدخل الرقم التسلسلي للجهاز..."
+                            className="flex-1 h-7 border border-line bg-surface rounded px-2 text-[10px] focus-visible:outline-none"
+                          />
+                        </div>
+                      )}
+
                       {idx < cart.length - 1 && (
                         <div className="border-b border-dashed border-border/60 my-1"></div>
                       )}
@@ -1497,32 +1755,34 @@ export function App() {
                 <h1 className="text-3xl font-extrabold">إدارة المنتجات والمعدات</h1>
               </div>
 
-              <button
-                onClick={() => {
-                  setEditingProduct(null);
-                  setProductForm({
-                    name: '',
-                    type: 'consumable',
-                    category: '',
-                    baseUnit: 'piece',
-                    barcode: '',
-                    costPrice: '0.000',
-                    retailPrice: '0.000',
-                    wholesalePrice: '0.000',
-                    quantity: '0',
-                    reorderPoint: '0',
-                    serialNumber: '',
-                    warrantyMonths: '0',
-                    batchNo: '',
-                    expiryDate: '',
-                  });
-                  setShowProductModal(true);
-                }}
-                className="flex items-center gap-2 py-2.5 px-4 bg-jade text-white rounded-control font-bold shadow-md hover:bg-jade-2 transition-colors cursor-pointer"
-              >
-                <Icons.Plus />
-                <span>إضافة منتج جديد</span>
-              </button>
+              {currentUser.role === 'manager' && (
+                <button
+                  onClick={() => {
+                    setEditingProduct(null);
+                    setProductForm({
+                      name: '',
+                      type: 'consumable',
+                      category: '',
+                      baseUnit: 'piece',
+                      barcode: '',
+                      costPrice: '0.000',
+                      retailPrice: '0.000',
+                      wholesalePrice: '0.000',
+                      quantity: '0',
+                      reorderPoint: '0',
+                      serialNumber: '',
+                      warrantyMonths: '0',
+                      batchNo: '',
+                      expiryDate: '',
+                    });
+                    setShowProductModal(true);
+                  }}
+                  className="flex items-center gap-2 py-2.5 px-4 bg-jade text-white rounded-control font-bold shadow-md hover:bg-jade-2 transition-colors cursor-pointer"
+                >
+                  <Icons.Plus />
+                  <span>إضافة منتج جديد</span>
+                </button>
+              )}
             </div>
 
             {/* List and search table */}
@@ -1579,24 +1839,28 @@ export function App() {
                         </td>
                         <td className="p-3 mono text-xs text-muted">{p.barcode || '—'}</td>
                         <td className="p-3 text-left">
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              onClick={() => {
-                                setAdjustingProduct(p);
-                                setAdjustForm({ quantity: '0', reason: '' });
-                                setShowAdjustModal(true);
-                              }}
-                              className="text-xs border border-border bg-surface px-2.5 py-1 rounded hover:bg-surface-2 text-copper transition-colors cursor-pointer"
-                            >
-                              تسوية كمية
-                            </button>
-                            <button
-                              onClick={() => startEditProduct(p)}
-                              className="text-xs border border-border bg-surface px-2.5 py-1 rounded hover:bg-surface-2 text-jade transition-colors cursor-pointer"
-                            >
-                              تعديل
-                            </button>
-                          </div>
+                          {currentUser.role === 'manager' ? (
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => {
+                                  setAdjustingProduct(p);
+                                  setAdjustForm({ quantity: '0', reason: '' });
+                                  setShowAdjustModal(true);
+                                }}
+                                className="text-xs border border-border bg-surface px-2.5 py-1 rounded hover:bg-surface-2 text-copper transition-colors cursor-pointer"
+                              >
+                                تسوية كمية
+                              </button>
+                              <button
+                                onClick={() => startEditProduct(p)}
+                                className="text-xs border border-border bg-surface px-2.5 py-1 rounded hover:bg-surface-2 text-jade transition-colors cursor-pointer"
+                              >
+                                تعديل
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted">عرض فقط</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -2003,23 +2267,78 @@ export function App() {
                   </div>
                 </div>
 
-                {/* Create new employee user */}
+                {/* Create/Edit employee user */}
                 <div className="rounded-card border border-line bg-surface p-6 flex flex-col gap-4">
-                  <h2 className="text-lg font-bold">المستخدمون والوصول</h2>
-                  <p className="text-xs text-muted">إدارة الطاقم وتسجيل موظفين جدد في المنظومة.</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold">المستخدمون والوصول</h2>
+                      <p className="text-xs text-muted mt-0.5">إدارة الطاقم وتعديل كلمات المرور والصلاحيات.</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (currentUser.role !== 'manager') {
+                          triggerToast('صلاحية المدير مطلوبة لإضافة مستخدمين', 'alert');
+                          return;
+                        }
+                        setShowCreateUserModal(true);
+                      }}
+                      className="px-3 py-1.5 bg-jade hover:bg-jade-2 text-white rounded-control text-xs font-bold transition-all cursor-pointer"
+                    >
+                      إضافة مستخدم
+                    </button>
+                  </div>
 
-                  <button
-                    onClick={() => {
-                      if (currentUser.role !== 'manager') {
-                        triggerToast('صلاحية المدير مطلوبة للوصول لإدارة المستخدمين', 'alert');
-                        return;
-                      }
-                      setShowCreateUserModal(true);
-                    }}
-                    className="w-full py-2.5 bg-surface border border-border text-text rounded-control text-xs font-bold hover:bg-surface-2 transition-colors cursor-pointer text-center"
-                  >
-                    إضافة مستخدم أو بائع جديد
-                  </button>
+                  {/* Users List */}
+                  <div className="flex flex-col gap-2 mt-2 max-h-[220px] overflow-y-auto">
+                    {usersList.map((usr) => (
+                      <div
+                        key={usr.id}
+                        className="p-3 rounded bg-surface-2 border border-border flex justify-between items-center"
+                      >
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm">{usr.username}</span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                                usr.role === 'manager'
+                                  ? 'bg-jade/10 text-jade border border-jade/30'
+                                  : 'bg-copper/10 text-copper border border-copper/30'
+                              }`}
+                            >
+                              {usr.role === 'manager' ? 'مدير' : 'بائع'}
+                            </span>
+                            {!usr.active && (
+                              <span className="rounded-full bg-red-500/10 text-red-500 border border-red-500/30 px-2 py-0.5 text-[9px] font-bold">
+                                معطل
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted mt-1 font-mono">
+                            حالة المستخدم: {usr.active ? 'نشط ومفعل' : 'موقوف'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (currentUser.role !== 'manager') {
+                              triggerToast('صلاحية المدير مطلوبة لتعديل المستخدمين', 'alert');
+                              return;
+                            }
+                            setEditingUser(usr);
+                            setEditUserForm({
+                              password: '', // blank by default (only change if entered)
+                              pin: '', // reset pin input
+                              role: usr.role,
+                              active: usr.active,
+                            });
+                            setShowEditUserModal(true);
+                          }}
+                          className="px-2.5 py-1 text-xs border border-border bg-surface hover:bg-border rounded transition-all cursor-pointer text-muted hover:text-text font-bold"
+                        >
+                          تعديل البيانات / كلمة المرور
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2286,6 +2605,11 @@ export function App() {
                   type="text"
                   value={productForm.barcode}
                   onChange={(e) => setProductForm({ ...productForm, barcode: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   className="w-full h-10 rounded-control border border-line bg-surface px-3 text-sm focus-visible:outline-none mono"
                 />
               </div>
@@ -2340,6 +2664,11 @@ export function App() {
                     onChange={(e) =>
                       setProductForm({ ...productForm, serialNumber: e.target.value })
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                      }
+                    }}
                     className="w-full h-10 rounded-control border border-line bg-surface px-3 text-sm focus-visible:outline-none font-mono"
                   />
                 </div>
@@ -2624,6 +2953,91 @@ export function App() {
         </div>
       )}
 
+      {/* 8.5. Edit User Modal (Manager only) */}
+      {showEditUserModal && editingUser && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={handleEditUserSubmit}
+            className="w-full max-w-[380px] rounded-card border border-line bg-surface p-6 shadow-md"
+          >
+            <h3 className="font-display font-extrabold text-base mb-2">
+              تعديل بيانات المستخدم: {editingUser.username}
+            </h3>
+            <p className="text-xs text-muted mb-4 font-semibold">
+              اترك حقل كلمة المرور فارغاً إذا كنت لا ترغب في تغييره.
+            </p>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-semibold">كلمة المرور الجديدة (اختياري)</label>
+              <input
+                type="password"
+                value={editUserForm.password}
+                onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
+                placeholder="أدخل كلمة مرور جديدة"
+                className="w-full h-10 rounded-control border border-line bg-surface px-3 text-sm focus-visible:outline-none"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-semibold">رمز PIN السريع الجديد (4 أرقام - اختياري)</label>
+              <input
+                type="text"
+                maxLength={4}
+                value={editUserForm.pin}
+                onChange={(e) => setEditUserForm({ ...editUserForm, pin: e.target.value })}
+                placeholder="تحديث رمز PIN"
+                className="w-full h-10 rounded-control border border-line bg-surface px-3 text-sm focus-visible:outline-none font-mono"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-semibold">الصلاحية</label>
+              <select
+                value={editUserForm.role}
+                onChange={(e) =>
+                  setEditUserForm({ ...editUserForm, role: e.target.value as any })
+                }
+                className="w-full h-10 rounded-control border border-line bg-surface px-3 text-sm focus-visible:outline-none"
+              >
+                <option value="sales">بائع (نقاط البيع والوردية فقط)</option>
+                <option value="manager">مدير كامل الصلاحيات</option>
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label className="flex items-center gap-2 cursor-pointer font-semibold text-sm">
+                <input
+                  type="checkbox"
+                  checked={editUserForm.active}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, active: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-jade focus:ring-jade"
+                />
+                <span>الحساب نشط ومفعل</span>
+              </label>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                className="flex-1 py-3 bg-jade text-white text-xs font-bold rounded-control hover:bg-jade-2 transition-colors cursor-pointer"
+              >
+                حفظ التعديلات
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditUserModal(false);
+                  setEditingUser(null);
+                }}
+                className="flex-1 py-3 bg-surface-2 border border-border text-muted text-xs font-bold rounded-control hover:text-text transition-colors cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* 9. Branded Invoice Print Preview Modal (A4 / 80mm Template Switcher) */}
       {showPrintModal && printingSale && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto no-print">
@@ -2693,7 +3107,14 @@ export function App() {
                 <tbody>
                   {printingSale.items?.map((item) => (
                     <tr key={item.id} className="border-b border-line">
-                      <td className="p-2 font-semibold">{item.productName}</td>
+                      <td className="p-2 font-semibold">
+                        <div>{item.productName}</div>
+                        {item.serialNumber && (
+                          <div className="text-[10px] text-muted font-mono font-normal mt-0.5">
+                            S/N: {item.serialNumber}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-2 text-center mono">{item.quantity}</td>
                       <td className="p-2 text-left mono">{formatLYD(item.unitPrice)}</td>
                       <td className="p-2 text-left mono font-bold">{formatLYD(item.total)}</td>

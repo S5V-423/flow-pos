@@ -52,6 +52,7 @@ export async function saleRoutes(app: FastifyInstance) {
         productName: products.name,
         productType: products.type,
         baseUnit: products.baseUnit,
+        serialNumber: saleItems.serialNumber,
       })
       .from(saleItems)
       .leftJoin(products, eq(saleItems.productId, products.id))
@@ -64,7 +65,7 @@ export async function saleRoutes(app: FastifyInstance) {
   // Create a new cash/credit sale
   app.post('/sales', async (req, reply) => {
     const body = req.body as {
-      items: Array<{ productId: number; quantity: number; unitPrice: number }>;
+      items: Array<{ productId: number; quantity: number; unitPrice: number; serialNumber?: string }>;
       discount: number; // in milli-LYD
       paymentType: 'cash' | 'credit';
       paymentMethod: 'cash' | 'card';
@@ -218,6 +219,7 @@ export async function saleRoutes(app: FastifyInstance) {
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               total: lineTotal(item.unitPrice, item.quantity),
+              serialNumber: item.serialNumber || null,
             })
             .run();
         }

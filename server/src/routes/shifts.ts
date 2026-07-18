@@ -1,5 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { eq, desc, and } from 'drizzle-orm';
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { resolveDbPath } from '../db/index.js';
 import { shifts, cashMovements, expenses, auditLogs, users } from '../db/schema.js';
 import { authenticateRequest } from './auth.js';
 
@@ -160,6 +163,37 @@ export async function shiftRoutes(app: FastifyInstance) {
         status: 'closed',
       };
     })();
+
+    // Trigger automated backup outside transaction
+    const dbPath = resolveDbPath();
+    if (dbPath !== ':memory:') {
+      try {
+        const backupDir = join(dirname(dbPath), 'backups');
+        if (!existsSync(backupDir)) {
+          mkdirSync(backupDir, { recursive: true });
+        }
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/T/, '_')
+          .replace(/\..+/, '')
+          .replace(/:/g, '-');
+        const backupFile = `pos_backup_auto_shift_${active.id}_${timestamp}.db`;
+        const destPath = join(backupDir, backupFile);
+        await app.sqlite.backup(destPath);
+
+        app.db
+          .insert(auditLogs)
+          .values({
+            userId: req.user!.userId,
+            action: 'backup_database',
+            details: `نسخ احتياطي تلقائي عند إغلاق الوردية ${active.id} إلى ${backupFile}`,
+            createdAt: new Date().toISOString(),
+          })
+          .run();
+      } catch (backupErr) {
+        app.log.error(backupErr, 'Automated backup failed on shift close');
+      }
+    }
 
     return result;
   });

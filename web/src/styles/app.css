@@ -15,8 +15,8 @@
   --color-copper: var(--copper);
   --color-copper-2: var(--copper-2);
   --color-alert: var(--alert);
-  --font-display: 'Cairo', sans-serif;
-  --font-body: 'Tajawal', sans-serif;
+  --font-display: 'Readex Pro', 'Cairo', sans-serif;
+  --font-body: 'Readex Pro', 'Tajawal', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --radius-card: var(--radius-card);
   --radius-control: var(--radius-control);
@@ -31,7 +31,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Tajawal', sans-serif;
+    font-family: 'Readex Pro', 'Tajawal', sans-serif;
     font-size: var(--font-base);
     line-height: 1.7;
     transition:

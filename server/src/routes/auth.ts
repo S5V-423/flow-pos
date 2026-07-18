@@ -190,6 +190,85 @@ export async function authRoutes(app: FastifyInstance) {
 
     return { success: true };
   });
+
+  // Update user details (password, pin, role, active status) - manager only
+  app.put('/users/:id', async (req, reply) => {
+    const currentUser = req.user;
+    if (!currentUser || currentUser.role !== 'manager') {
+      return reply.code(403).send({ error: 'forbidden', message: 'هذا الإجراء متاح للمدراء فقط' });
+    }
+
+    const { id } = req.params as { id: string };
+    const userId = parseInt(id, 10);
+    if (isNaN(userId)) {
+      return reply.code(400).send({ error: 'invalid_id', message: 'معرف المستخدم غير صحيح' });
+    }
+
+    const { password, pin, role, active } = req.body as {
+      password?: string;
+      pin?: string;
+      role?: 'manager' | 'sales';
+      active?: boolean;
+    };
+
+    const targetUser = app.db.select().from(users).where(eq(users.id, userId)).get();
+    if (!targetUser) {
+      return reply.code(404).send({ error: 'user_not_found', message: 'المستخدم غير موجود' });
+    }
+
+    // Prepare updates
+    const updates: any = {};
+
+    if (password !== undefined && password.trim() !== '') {
+      const salt = bcrypt.genSaltSync(10);
+      updates.passwordHash = bcrypt.hashSync(password, salt);
+    }
+
+    if (pin !== undefined) {
+      const trimmedPin = pin.trim() === '' ? null : pin.trim();
+      if (trimmedPin) {
+        // Check uniqueness of PIN (excluding targetUser itself)
+        const pinInUse = app.db
+          .select()
+          .from(users)
+          .where(eq(users.pin, trimmedPin))
+          .get();
+        if (pinInUse && pinInUse.id !== targetUser.id) {
+          return reply.code(400).send({ error: 'pin_taken', message: 'رمز PIN مستخدم بالفعل لمستخدم آخر' });
+        }
+      }
+      updates.pin = trimmedPin;
+    }
+
+    if (role !== undefined) {
+      updates.role = role;
+    }
+
+    if (active !== undefined) {
+      // Prevent manager from deactivating themselves
+      if (targetUser.id === currentUser.userId && !active) {
+        return reply.code(400).send({ error: 'cannot_deactivate_self', message: 'لا يمكنك إلغاء تنشيط حسابك الخاص' });
+      }
+      updates.active = active;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      app.db.update(users).set(updates).where(eq(users.id, targetUser.id)).run();
+
+      // Audit log of update
+      app.db
+        .insert(auditLogs)
+        .values({
+          userId: currentUser.userId,
+          action: 'update_user',
+          details: `تحديث بيانات المستخدم ${targetUser.username}: ${Object.keys(updates).join(', ')}`,
+          createdAt: new Date().toISOString(),
+        })
+        .run();
+    }
+
+    return { success: true };
+  });
 }
 
 // Request authentication hook

@@ -150,6 +150,7 @@ export const saleItems = sqliteTable('sale_items', {
   quantity: integer('quantity').notNull(),
   unitPrice: integer('unit_price').notNull(), // milli-LYD
   total: integer('total').notNull(), // milli-LYD
+  serialNumber: text('serial_number'),
 });
 
 export const auditLogs = sqliteTable('audit_logs', {
