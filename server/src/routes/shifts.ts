@@ -90,7 +90,8 @@ export async function shiftRoutes(app: FastifyInstance) {
       })
       .run();
 
-    return { id: newShiftId, success: true };
+    const newShift = app.db.select().from(shifts).where(eq(shifts.id, newShiftId)).get();
+    return newShift;
   });
 
   // Close active shift

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { eq, desc } from 'drizzle-orm';
-import { suppliers, auditLogs } from '../db/schema.js';
+import { suppliers, auditLogs, shifts, cashMovements } from '../db/schema.js';
 import { authenticateRequest } from './auth.js';
 
 export async function supplierRoutes(app: FastifyInstance) {
@@ -89,6 +89,29 @@ export async function supplierRoutes(app: FastifyInstance) {
     app.db.update(suppliers).set({ debtBalance: newDebt }).where(eq(suppliers.id, id)).run();
 
     const now = new Date().toISOString();
+
+    // Check active shift to register withdrawal cash movement
+    const activeShift = app.db
+      .select()
+      .from(shifts)
+      .where(eq(shifts.status, 'open'))
+      .limit(1)
+      .get();
+
+    if (activeShift) {
+      app.db
+        .insert(cashMovements)
+        .values({
+          shiftId: activeShift.id,
+          type: 'withdrawal',
+          amount: -amount,
+          referenceId: `سداد مورد ${supplier.name}`,
+          userId: req.user.userId,
+          createdAt: now,
+        })
+        .run();
+    }
+
     app.db
       .insert(auditLogs)
       .values({

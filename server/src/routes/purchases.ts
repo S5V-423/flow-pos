@@ -8,6 +8,8 @@ import {
   suppliers,
   auditLogs,
   users,
+  shifts,
+  cashMovements,
 } from '../db/schema.js';
 import { authenticateRequest } from './auth.js';
 
@@ -168,6 +170,30 @@ export async function purchaseRoutes(app: FastifyInstance) {
             .update(suppliers)
             .set({ debtBalance: supplier.debtBalance + unpaid })
             .where(eq(suppliers.id, body.supplierId))
+            .run();
+        }
+      }
+
+      // If paid > 0 and active shift is open, record cash expense from drawer
+      if (paid > 0) {
+        const activeShift = app.db
+          .select()
+          .from(shifts)
+          .where(eq(shifts.status, 'open'))
+          .limit(1)
+          .get();
+
+        if (activeShift) {
+          app.db
+            .insert(cashMovements)
+            .values({
+              shiftId: activeShift.id,
+              type: 'expense',
+              amount: -paid,
+              referenceId: invoiceNumber,
+              userId: req.user!.userId,
+              createdAt: now,
+            })
             .run();
         }
       }

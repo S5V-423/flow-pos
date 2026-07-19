@@ -946,6 +946,11 @@ export function App() {
       return;
     }
 
+    if (posPaymentType === 'credit' && !posCustomerId) {
+      triggerToast('يرجى اختيار العميل أولاً لتسجيل فاتورة بيع آجل (دين)', 'alert');
+      return;
+    }
+
     const discountMillis = Math.floor(parseFloat(posDiscount) * 1000);
     const cartItems = cart.map((i) => ({
       productId: i.product.id,
@@ -970,11 +975,14 @@ export function App() {
   };
 
   const submitCheckoutApi = async (cartItems: any[], discountMillis: number, pin?: string) => {
+    const selectedCustomer = customersList.find((c) => c.id === posCustomerId);
     const payload = {
       items: cartItems,
       discount: discountMillis,
-      paymentType: 'cash' as const,
+      paymentType: posPaymentType,
       paymentMethod: posPaymentMethod,
+      customerId: posCustomerId || undefined,
+      customerName: selectedCustomer?.name,
       overridePin: pin,
     };
 
@@ -983,6 +991,8 @@ export function App() {
       triggerToast(`تم تسجيل الفاتورة بنجاح: ${res.data.invoiceNumber}`);
       setCart([]);
       setPosDiscount('0');
+      setPosCustomerId(null);
+      setPosPaymentType('cash');
 
       // Load detailed invoice and show printing overlay
       fetch(`/api/sales/${res.data.id}`, { headers: { Authorization: `Bearer ${token}` } })
@@ -1219,7 +1229,8 @@ export function App() {
   // Open Shift
   const handleOpenShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cash = Math.floor(parseFloat(openShiftForm.openingCash) * 1000);
+    const rawCash = parseFloat(openShiftForm.openingCash) || 0;
+    const cash = Math.max(0, Math.floor(rawCash * 1000));
     const res = await apiCall('/api/shifts/open', 'POST', { openingCash: cash });
     if (res.success) {
       triggerToast('تم فتح التوكة وبدء التشغيل الفعلي للخزينة');
@@ -1234,7 +1245,8 @@ export function App() {
   // Close Shift
   const handleCloseShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cash = Math.floor(parseFloat(closeShiftForm.actualCash) * 1000);
+    const rawCash = parseFloat(closeShiftForm.actualCash) || 0;
+    const cash = Math.max(0, Math.floor(rawCash * 1000));
     const res = await apiCall('/api/shifts/close', 'POST', { actualCash: cash });
     if (res.success) {
       const closedShift = res.data;
@@ -1474,75 +1486,168 @@ export function App() {
   // Login view if not logged in or user data is missing
   if (!token || !currentUser) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-surface-2 p-6" dir="rtl">
-        <div className="w-full max-w-[420px] rounded-card border border-line bg-surface p-8 shadow-card">
-          <div className="mb-6 flex flex-col items-center gap-3 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-[14px] bg-jade font-mono text-lg font-bold text-white shadow-md">
+      <div className="flex min-h-dvh" dir="rtl">
+        {/* Left decorative panel */}
+        <div
+          className="hidden lg:flex flex-col justify-between w-[45%] p-12 relative overflow-hidden"
+          style={{ background: 'var(--gradient-warm)' }}
+        >
+          {/* Background pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage: `repeating-linear-gradient(45deg, var(--jade) 0, var(--jade) 1px, transparent 0, transparent 50%)`,
+              backgroundSize: '24px 24px',
+            }}
+          />
+          {/* Brand mark */}
+          <div className="relative z-10">
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-2xl font-mono text-2xl font-black text-white mb-8"
+              style={{ background: 'var(--gradient-jade)', boxShadow: 'var(--shadow-jade)' }}
+            >
               POS
             </div>
-            <div>
-              <h1 className="font-display text-2xl font-extrabold">منظومة المبيعات والمخزون</h1>
-              <p className="text-sm text-muted">مستلزمات المقاهي والمطاعم</p>
-            </div>
+            <h1 className="text-4xl font-black leading-tight mb-4" style={{ color: '#F0EBE0', fontFamily: 'Cairo, sans-serif' }}>
+              منظومة المبيعات<br />والمخزون
+            </h1>
+            <p className="text-base leading-relaxed" style={{ color: '#8C8070' }}>
+              نظام متكامل لإدارة مستلزمات المقاهي والمطاعم —<br />
+              مبيعات، مخزون، خزينة، وموردين في مكان واحد.
+            </p>
           </div>
 
-          <div className="mb-6 rounded-[10px] bg-surface-2 p-4 text-center">
-            <p className="text-xs text-muted mb-2">تسجيل دخول تجريبي سريع</p>
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => handlePinSwitch('1111')}
-                className="rounded-full border border-line bg-surface px-4 py-1.5 text-xs text-jade hover:bg-jade hover:text-white transition-colors"
-              >
-                المدير (1111)
-              </button>
-              <button
-                onClick={() => handlePinSwitch('2222')}
-                className="rounded-full border border-line bg-surface px-4 py-1.5 text-xs text-copper hover:bg-copper hover:text-white transition-colors"
-              >
-                الكاشير (2222)
-              </button>
-            </div>
+          {/* Stats decorative */}
+          <div className="relative z-10 grid grid-cols-2 gap-4">
+            {[
+              { label: 'إدارة المخزون', icon: '📦' },
+              { label: 'نقطة البيع', icon: '🧾' },
+              { label: 'إدارة الموردين', icon: '🚚' },
+              { label: 'تقارير مالية', icon: '📊' },
+            ].map((f) => (
+              <div key={f.label} className="flex items-center gap-3 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span className="text-xl">{f.icon}</span>
+                <span className="text-xs font-bold" style={{ color: '#C8C0B0' }}>{f.label}</span>
+              </div>
+            ))}
           </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div>
-              <label className="mb-1 block font-display text-sm font-semibold text-text">
-                اسم المستخدم
-              </label>
-              <input
-                type="text"
-                value={loginUsername}
-                onChange={(e) => setLoginUsername(e.target.value)}
-                placeholder="أدخل اسم المستخدم"
-                className="w-full h-11 rounded-control border border-line bg-surface px-3 text-sm focus-visible:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block font-display text-sm font-semibold text-text">
-                كلمة المرور
-              </label>
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور"
-                className="w-full h-11 rounded-control border border-line bg-surface px-3 text-sm focus-visible:outline-none"
-              />
+          {/* Footer */}
+          <div className="relative z-10 text-xs" style={{ color: '#4A4440' }}>
+            © {new Date().getFullYear()} — نظام إدارة متكامل · نسخة محلية بدون إنترنت
+          </div>
+        </div>
+
+        {/* Right form panel */}
+        <div className="flex flex-1 items-center justify-center p-8" style={{ background: 'var(--bg)' }}>
+          <div className="w-full max-w-[400px]">
+            {/* Mobile logo */}
+            <div className="lg:hidden flex justify-center mb-8">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-2xl font-mono text-xl font-black text-white"
+                style={{ background: 'var(--gradient-jade)', boxShadow: 'var(--shadow-jade)' }}
+              >
+                POS
+              </div>
             </div>
 
-            {loginError && (
-              <p className="text-xs text-alert font-bold bg-alert/10 p-2.5 rounded-control">
-                {loginError}
+            <div className="mb-8">
+              <h2 className="font-display text-2xl font-black mb-1.5" style={{ color: 'var(--text)' }}>
+                مرحباً بك 👋
+              </h2>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                سجّل دخولك للبدء بإدارة المنظومة
               </p>
-            )}
+            </div>
 
-            <button
-              type="submit"
-              className="mt-2 h-11 rounded-control bg-jade text-sm font-bold text-white shadow-md hover:bg-jade-2 transition-colors cursor-pointer"
-            >
-              تسجيل الدخول
-            </button>
-          </form>
+            {/* Quick PIN shortcuts */}
+            <div className="mb-6 rounded-2xl p-4" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <p className="text-xs font-bold mb-3" style={{ color: 'var(--text-muted)' }}>دخول سريع بالـ PIN</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handlePinSwitch('1111')}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:-translate-y-0.5"
+                  style={{ background: 'var(--jade-glow)', color: 'var(--jade)', border: '1px solid color-mix(in srgb, var(--jade) 30%, transparent)' }}
+                >
+                  🔐 المدير (١١١١)
+                </button>
+                <button
+                  onClick={() => handlePinSwitch('2222')}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer hover:-translate-y-0.5"
+                  style={{ background: 'var(--copper-glow)', color: 'var(--copper)', border: '1px solid color-mix(in srgb, var(--copper) 30%, transparent)' }}
+                >
+                  👤 الكاشير (٢٢٢٢)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>أو بالاسم وكلمة المرور</span>
+              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+            </div>
+
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-bold" style={{ color: 'var(--text)', fontFamily: 'Cairo, sans-serif' }}>
+                  اسم المستخدم
+                </label>
+                <input
+                  type="text"
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  placeholder="أدخل اسم المستخدم"
+                  autoComplete="username"
+                  className="w-full h-12 rounded-xl px-4 text-sm transition-all focus-visible:outline-none"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--text)',
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--jade)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--jade-glow)'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-bold" style={{ color: 'var(--text)', fontFamily: 'Cairo, sans-serif' }}>
+                  كلمة المرور
+                </label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="w-full h-12 rounded-xl px-4 text-sm transition-all focus-visible:outline-none"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--text)',
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--jade)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--jade-glow)'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              {loginError && (
+                <div className="flex items-center gap-2 rounded-xl p-3 text-sm font-bold" style={{ background: 'var(--alert-glow)', color: 'var(--alert)', border: '1px solid color-mix(in srgb, var(--alert) 30%, transparent)' }}>
+                  <span>⚠️</span> {loginError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="mt-2 h-13 rounded-xl text-sm font-bold text-white transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+                style={{ background: 'var(--gradient-jade)', boxShadow: 'var(--shadow-jade)' }}
+              >
+                تسجيل الدخول ←
+              </button>
+            </form>
+
+            <p className="mt-8 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+              نظام محلي · يعمل بدون إنترنت · {new Date().toLocaleDateString('ar-LY')}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -1611,75 +1716,129 @@ export function App() {
 
     return (
       <div
-        className="min-h-dvh bg-surface-2 flex flex-col items-center justify-start py-12 px-6 sm:px-8 select-none font-display overflow-y-auto"
+        className="min-h-dvh flex flex-col items-center justify-start py-10 px-6 sm:px-10 select-none overflow-y-auto"
+        style={{ background: 'var(--bg)' }}
         dir="rtl"
       >
-        <div className="w-full max-w-[1000px] flex flex-col gap-8">
+        <div className="w-full max-w-[1060px] flex flex-col gap-8">
           {/* Header */}
-          <div className="flex justify-between items-center pb-6 border-b border-line">
+          <div
+            className="flex justify-between items-center p-5 rounded-2xl"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}
+          >
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[14px] bg-jade font-mono text-xl font-bold text-white shadow-md">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-2xl font-mono text-lg font-black text-white shadow-md flex-shrink-0"
+                style={{ background: 'var(--gradient-jade)', boxShadow: 'var(--shadow-jade)' }}
+              >
                 POS
               </div>
               <div>
-                <h1 className="font-display text-3xl font-extrabold text-text">
+                <h1 className="font-display text-2xl font-black" style={{ color: 'var(--text)' }}>
                   {settingsData?.businessName ?? 'منظومة مستلزمات المقاهي والمطاعم'}
                 </h1>
-                <p className="text-sm text-muted">اختر القسم الذي تريد الدخول إليه للبدء بالعمل</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>اختر القسم للبدء بالعمل</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="text-left font-display">
-                <div className="text-xs text-muted text-left">المستخدم الحالي:</div>
-                <div className="text-sm font-bold text-text text-left">{currentUser.username}</div>
+              <div className="text-left">
+                <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)', fontFamily: 'Cairo, sans-serif' }}>مرحباً،</div>
+                <div className="text-sm font-black" style={{ color: 'var(--text)', fontFamily: 'Cairo, sans-serif' }}>{currentUser.username}</div>
               </div>
               <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${currentUser.role === 'manager' ? 'bg-jade/10 text-jade border border-jade/30' : 'bg-copper/10 text-copper border border-copper/30'}`}
+                className="rounded-full px-3 py-1 text-xs font-black"
+                style={currentUser.role === 'manager'
+                  ? { background: 'var(--jade-glow)', color: 'var(--jade)', border: '1px solid color-mix(in srgb, var(--jade) 30%, transparent)' }
+                  : { background: 'var(--copper-glow)', color: 'var(--copper)', border: '1px solid color-mix(in srgb, var(--copper) 30%, transparent)' }}
               >
-                {currentUser.role === 'manager' ? 'مدير النظام' : 'بائع الكاشير'}
+                {currentUser.role === 'manager' ? '★ مدير' : 'كاشير'}
               </span>
               <button
+                type="button"
+                onClick={() => setThemeState(toggleTheme())}
+                className="h-9 w-9 flex items-center justify-center rounded-xl text-base transition-all cursor-pointer hover:-translate-y-0.5"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+                title={theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الليلي'}
+              >
+                {theme === 'dark' ? '☀️' : '🌙'}
+              </button>
+              <button
                 onClick={handleLogout}
-                className="mr-3 h-10 w-10 flex items-center justify-center rounded-full border border-red-500/20 bg-red-500/5 text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                className="h-9 w-9 flex items-center justify-center rounded-xl transition-all cursor-pointer hover:-translate-y-0.5"
+                style={{ border: '1px solid color-mix(in srgb, var(--alert) 25%, transparent)', background: 'var(--alert-glow)', color: 'var(--alert)' }}
                 title="تسجيل الخروج"
               >
-                <Icons.Power />
+                <Icons.Power className="h-4 w-4" />
               </button>
             </div>
           </div>
 
+          {/* Active Shift Banner */}
+          {activeShift ? (
+            <div
+              className="flex items-center justify-between px-5 py-3.5 rounded-2xl text-sm font-bold"
+              style={{ background: 'var(--jade-glow)', color: 'var(--jade)', border: '1px solid color-mix(in srgb, var(--jade) 25%, transparent)' }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: 'var(--jade)' }} />
+                <span>التوكة مفتوحة: #{activeShift.id} — بدأت الساعة {new Date(activeShift.openedAt).toLocaleTimeString('ar-LY')}</span>
+              </div>
+              <button
+                onClick={() => { setActiveTab('Shifts'); setShowCloseShiftModal(true); }}
+                className="px-3.5 py-1 text-xs font-bold rounded-xl bg-white/20 hover:bg-white/30 transition-all cursor-pointer"
+              >
+                إغلاق وجرد التوكة 🔒
+              </button>
+            </div>
+          ) : (
+            <div
+              className="flex items-center justify-between px-5 py-3.5 rounded-2xl text-sm font-bold"
+              style={{ background: 'var(--alert-glow)', color: 'var(--alert)', border: '1px solid color-mix(in srgb, var(--alert) 25%, transparent)' }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--alert)' }} />
+                <span>لا توجد توكة مفتوحة حالياً — يلزم فتح توكة لتمكين عمليات البيع</span>
+              </div>
+              <button
+                onClick={() => setShowOpenShiftModal(true)}
+                className="px-4 py-1.5 text-xs font-black rounded-xl text-white shadow-sm transition-all cursor-pointer hover:scale-105"
+                style={{ background: 'var(--gradient-jade)' }}
+              >
+                ⚡ فتح توكة جديدة
+              </button>
+            </div>
+          )}
+
           {/* Grid Selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {tabsList.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex flex-col text-right p-6 bg-surface border border-line rounded-card shadow-card hover:border-jade hover:-translate-y-1 transition-all cursor-pointer group"
+                className="flex flex-col text-right p-6 rounded-2xl transition-all cursor-pointer group hover:-translate-y-1"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--jade) 40%, transparent)'; e.currentTarget.style.boxShadow = 'var(--shadow-jade)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-[12px] bg-surface-2 text-muted group-hover:bg-jade/10 group-hover:text-jade transition-colors mb-5">
+                <div
+                  className="flex h-13 w-13 items-center justify-center rounded-xl mb-5 transition-all group-hover:scale-110"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                >
                   <tab.icon />
                 </div>
-                <h3 className="font-display text-lg font-extrabold text-text group-hover:text-jade transition-colors mb-2">
+                <h3 className="font-display text-lg font-black mb-2 transition-colors" style={{ color: 'var(--text)' }}>
                   {tab.label}
                 </h3>
-                <p className="text-xs text-muted font-semibold leading-relaxed">{tab.desc}</p>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{tab.desc}</p>
               </button>
             ))}
           </div>
 
-          {/* Footer controls (Theme switch, etc.) */}
-          <div className="flex justify-between items-center pt-6 border-t border-line mt-4">
-            <span className="text-xs text-muted mono">
-              التاريخ: {new Date().toLocaleDateString('ar-LY')}
-            </span>
-            <button
-              type="button"
-              onClick={() => setThemeState(toggleTheme())}
-              className="px-6 py-2 rounded-full border border-line bg-surface text-xs font-bold text-muted hover:text-text transition-colors cursor-pointer"
-            >
-              {theme === 'dark' ? 'الوضع الفاتح ☀️' : 'الوضع الليلي 🌙'}
-            </button>
+          {/* Footer */}
+          <div className="flex justify-between items-center py-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span className="mono">{new Date().toLocaleDateString('ar-LY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <span>نظام إدارة محلي · v2.0</span>
           </div>
         </div>
       </div>
@@ -1689,48 +1848,60 @@ export function App() {
   return (
     <div className="grid min-h-dvh grid-cols-[272px_1fr] max-[900px]:grid-cols-1" dir="rtl">
       {/* Sidebar Navigation */}
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-e border-line bg-surface p-6 min-[901px]:flex">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[10px] bg-gradient-to-tr from-jade to-copper font-mono text-base font-bold text-white shadow-sm border border-line">
-            FD
+      <aside
+        className="sticky top-0 hidden h-dvh flex-col gap-5 border-e p-5 min-[901px]:flex overflow-y-auto"
+        style={{ background: 'var(--gradient-sidebar)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex items-center gap-3 pt-1">
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-xl font-mono text-sm font-black text-white shadow-md flex-shrink-0"
+            style={{ background: 'var(--gradient-jade)', boxShadow: 'var(--shadow-jade)' }}
+          >
+            POS
           </div>
-          <div>
-            <div className="font-display text-sm font-extrabold leading-tight">
+          <div className="min-w-0">
+            <div className="font-display text-sm font-extrabold leading-tight truncate" style={{ color: 'var(--text)' }}>
               {settingsData?.businessName ?? 'سوق المذاق للمستلزمات'}
             </div>
-            <div className="mono text-[11px] text-muted">المستلزمات والمعدات</div>
+            <div className="mono text-[10px]" style={{ color: 'var(--text-muted)' }}>المستلزمات والمعدات</div>
           </div>
         </div>
 
         {/* Current Active User Status */}
-        <div className="rounded-[10px] border border-line bg-surface-2 p-3.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-muted">المستخدم الحالي:</span>
+        <div
+          className="rounded-2xl p-3.5"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>المستخدم الحالي</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${currentUser.role === 'manager' ? 'bg-jade/10 text-jade border border-jade/30' : 'bg-copper/10 text-copper border border-copper/30'}`}
+              className="rounded-full px-2 py-0.5 text-[10px] font-black"
+              style={currentUser.role === 'manager'
+                ? { background: 'var(--jade-glow)', color: 'var(--jade)', border: '1px solid color-mix(in srgb, var(--jade) 30%, transparent)' }
+                : { background: 'var(--copper-glow)', color: 'var(--copper)', border: '1px solid color-mix(in srgb, var(--copper) 30%, transparent)' }}
             >
-              {currentUser.role === 'manager' ? 'مدير' : 'مبيعات'}
+              {currentUser.role === 'manager' ? '★ مدير' : 'كاشير'}
             </span>
           </div>
-          <div className="font-display text-sm font-bold mb-2.5">{currentUser.username}</div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setSwitchPinValue('');
-                setShowUserPinModal(true);
-              }}
-              className="flex-1 text-center py-1.5 text-xs font-semibold rounded-control bg-surface border border-border text-muted hover:text-text hover:bg-surface-2 transition-colors"
-            >
-              تبديل سريع (PIN)
-            </button>
-          </div>
+          <div className="font-display text-base font-black mb-3" style={{ color: 'var(--text)' }}>{currentUser.username}</div>
+          <button
+            onClick={() => {
+              setSwitchPinValue('');
+              setShowUserPinModal(true);
+            }}
+            className="w-full py-2 text-xs font-bold rounded-xl transition-all cursor-pointer hover:-translate-y-0.5"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            تبديل المستخدم (PIN) 🔄
+          </button>
         </div>
 
         {/* Navigation Menus */}
-        <nav className="flex flex-col gap-1 text-sm">
+        <nav className="flex flex-col gap-1 text-sm flex-1">
           <button
             onClick={() => setActiveTab('Home')}
-            className="flex items-center gap-3 min-h-11 rounded-[9px] border border-dashed border-jade/40 bg-jade/5 text-jade px-4 py-2 transition-colors cursor-pointer text-right mb-3 hover:bg-jade/10 font-bold"
+            className="flex items-center gap-3 min-h-10 rounded-xl px-3.5 py-2 transition-all cursor-pointer text-right mb-2 font-bold text-xs hover:-translate-x-0.5"
+            style={{ background: 'var(--jade-glow)', color: 'var(--jade)', border: '1px dashed color-mix(in srgb, var(--jade) 35%, transparent)' }}
           >
             <Icons.Home />
             <span>القائمة الرئيسية</span>
@@ -1739,13 +1910,10 @@ export function App() {
           {[
             { id: 'Dashboard', label: 'لوحة التحكم', icon: Icons.Dashboard, managerOnly: true },
             { id: 'POS', label: 'نقطة البيع', icon: Icons.POS, managerOnly: false },
-            {
-              id: 'Products',
-              label: 'المنتجات والمخازن',
-              icon: Icons.Products,
-              managerOnly: false,
-            },
-            { id: 'Shifts', label: 'التوكات والخزينة', icon: Icons.Shifts, managerOnly: false },
+            { id: 'Products', label: 'المنتجات والمخزون', icon: Icons.Products, managerOnly: false },
+            { id: 'Shifts', label: 'التوكة والخزينة', icon: Icons.Shifts, managerOnly: false },
+            { id: 'Purchases', label: 'المشتريات والموردين', icon: Icons.Truck, managerOnly: true },
+            { id: 'Customers', label: 'العملاء والذمم', icon: Icons.Users, managerOnly: true },
             { id: 'Reports', label: 'التقارير المالية', icon: Icons.Reports, managerOnly: true },
             { id: 'Settings', label: 'الإعدادات العامة', icon: Icons.Settings, managerOnly: true },
           ]
@@ -1754,32 +1922,35 @@ export function App() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={
-                  'flex items-center gap-3 min-h-11 rounded-[9px] border px-4 py-2 transition-colors cursor-pointer text-right ' +
-                  (activeTab === item.id
-                    ? 'border-line bg-surface-2 font-bold text-jade'
-                    : 'border-transparent text-muted hover:bg-surface-2 hover:text-fg')
+                className="flex items-center gap-3 min-h-10 rounded-xl px-3.5 py-2 transition-all cursor-pointer text-right text-xs font-semibold hover:-translate-x-0.5"
+                style={
+                  activeTab === item.id
+                    ? { background: 'var(--surface-2)', color: 'var(--jade)', fontWeight: 700, border: '1px solid var(--border)' }
+                    : { color: 'var(--text-muted)', border: '1px solid transparent' }
                 }
               >
                 <item.icon />
                 <span>{item.label}</span>
+                {activeTab === item.id && <span className="mr-auto w-1.5 h-1.5 rounded-full" style={{ background: 'var(--jade)' }} />}
               </button>
             ))}
         </nav>
 
         {/* System Theme / Power Toggle */}
-        <div className="mt-auto flex flex-col gap-2">
+        <div className="flex flex-col gap-2 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
           <button
             type="button"
             onClick={() => setThemeState(toggleTheme())}
-            className="flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-surface-2 px-4 text-xs font-bold text-muted transition-colors hover:text-fg"
+            className="flex min-h-9 items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all cursor-pointer hover:-translate-y-0.5"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-muted)' }}
           >
-            {theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الليلي'}
+            {theme === 'dark' ? '☀️ الوضع الفاتح' : '🌙 الوضع الليلي'}
           </button>
 
           <button
             onClick={handleLogout}
-            className="flex min-h-10 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-4 text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors"
+            className="flex min-h-9 items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all cursor-pointer hover:-translate-y-0.5"
+            style={{ border: '1px solid color-mix(in srgb, var(--alert) 25%, transparent)', background: 'var(--alert-glow)', color: 'var(--alert)' }}
           >
             <Icons.Power />
             <span>تسجيل الخروج</span>
@@ -1814,9 +1985,13 @@ export function App() {
                           ? 'إدارة المنتجات'
                           : activeTab === 'Shifts'
                             ? 'التوكات والخزينة'
-                            : activeTab === 'Reports'
-                              ? 'التقارير والإحصائيات'
-                              : 'الإعدادات'}
+                            : activeTab === 'Purchases'
+                              ? 'المشتريات والموردين'
+                              : activeTab === 'Customers'
+                                ? 'العملاء والذمم'
+                                : activeTab === 'Reports'
+                                  ? 'التقارير والإحصائيات'
+                                  : 'الإعدادات'}
                 </span>
               </div>
             </div>
@@ -2361,7 +2536,29 @@ export function App() {
 
         {/* POS Tab */}
         {activeTab === 'POS' && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+          <div className="flex flex-col gap-4">
+            {!activeShift && (
+              <div
+                className="flex flex-wrap items-center justify-between p-4 rounded-2xl border text-sm font-bold gap-3"
+                style={{ background: 'var(--alert-glow)', borderColor: 'color-mix(in srgb, var(--alert) 30%, transparent)', color: 'var(--alert)' }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">⚠️</span>
+                  <div>
+                    <div>تنبيه: لا توجد توكة مفتوحة في الخزينة حالياً!</div>
+                    <div className="text-xs font-normal opacity-80">لا يمكنك إتمام المبيعات وتأكيد الفواتير حتى يتم فتح توكة جديدة وتحديد المبلغ الافتتاحي للدرج.</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowOpenShiftModal(true)}
+                  className="px-5 py-2 rounded-xl text-xs font-black text-white shadow-md transition-all cursor-pointer hover:scale-105"
+                  style={{ background: 'var(--gradient-jade)' }}
+                >
+                  ⚡ فتح توكة جديدة الآن
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
             {/* Products Selection Grid */}
             <div className="flex flex-col gap-4">
               {/* Scanner Search & Filters */}
@@ -2573,27 +2770,64 @@ export function App() {
                   </span>
                 </div>
 
-                {/* Cash/Card/Transfer Selector */}
-                <div className="grid grid-cols-3 gap-1.5 mt-2">
-                  <button
-                    onClick={() => setPosPaymentMethod('cash')}
-                    className={`py-1.5 rounded-[4px] text-[11px] font-bold border transition-colors cursor-pointer ${posPaymentMethod === 'cash' ? 'bg-jade text-white border-jade' : 'bg-surface-2 text-muted border-border'}`}
-                  >
-                    نقدًا (كاش)
-                  </button>
-                  <button
-                    onClick={() => setPosPaymentMethod('card')}
-                    className={`py-1.5 rounded-[4px] text-[11px] font-bold border transition-colors cursor-pointer ${posPaymentMethod === 'card' ? 'bg-jade text-white border-jade' : 'bg-surface-2 text-muted border-border'}`}
-                  >
-                    بطاقة مصرفية
-                  </button>
-                  <button
-                    onClick={() => setPosPaymentMethod('transfer')}
-                    className={`py-1.5 rounded-[4px] text-[11px] font-bold border transition-colors cursor-pointer ${posPaymentMethod === 'transfer' ? 'bg-jade text-white border-jade' : 'bg-surface-2 text-muted border-border'}`}
-                  >
-                    حوالة مصرفية
-                  </button>
+                {/* Payment Type Selector (Cash vs Credit Sale) */}
+                <div className="flex flex-col gap-1.5 mt-1">
+                  <div className="grid grid-cols-2 gap-1 bg-surface-2 p-1 rounded border border-border text-[11px]">
+                    <button
+                      onClick={() => setPosPaymentType('cash')}
+                      className={`py-1 rounded font-bold transition-all cursor-pointer ${posPaymentType === 'cash' ? 'bg-jade text-white shadow-sm' : 'text-muted hover:text-text'}`}
+                    >
+                      بيع نقدي مباشر
+                    </button>
+                    <button
+                      onClick={() => setPosPaymentType('credit')}
+                      className={`py-1 rounded font-bold transition-all cursor-pointer ${posPaymentType === 'credit' ? 'bg-amber-600 text-white shadow-sm' : 'text-muted hover:text-text'}`}
+                    >
+                      بيع بالآجل (دين)
+                    </button>
+                  </div>
+
+                  {/* Customer Selector Dropdown */}
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-[11px] text-muted whitespace-nowrap">العميل:</span>
+                    <select
+                      value={posCustomerId || ''}
+                      onChange={(e) => setPosCustomerId(e.target.value ? Number(e.target.value) : null)}
+                      className={`w-full h-8 text-[11px] rounded border bg-white px-2 focus-visible:outline-none text-ink ${posPaymentType === 'credit' && !posCustomerId ? 'border-alert font-bold bg-red-50' : 'border-border'}`}
+                    >
+                      <option value="">-- زبون عابر (بدون حساب) --</option>
+                      {customersList.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.creditBalance > 0 ? `(عليه ${(c.creditBalance / 1000).toFixed(3)} د.ل)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
+                {/* Cash/Card/Transfer Selector */}
+                {posPaymentType === 'cash' && (
+                  <div className="grid grid-cols-3 gap-1.5 mt-1">
+                    <button
+                      onClick={() => setPosPaymentMethod('cash')}
+                      className={`py-1.5 rounded-[4px] text-[11px] font-bold border transition-colors cursor-pointer ${posPaymentMethod === 'cash' ? 'bg-jade text-white border-jade' : 'bg-surface-2 text-muted border-border'}`}
+                    >
+                      نقدًا (كاش)
+                    </button>
+                    <button
+                      onClick={() => setPosPaymentMethod('card')}
+                      className={`py-1.5 rounded-[4px] text-[11px] font-bold border transition-colors cursor-pointer ${posPaymentMethod === 'card' ? 'bg-jade text-white border-jade' : 'bg-surface-2 text-muted border-border'}`}
+                    >
+                      بطاقة مصرفية
+                    </button>
+                    <button
+                      onClick={() => setPosPaymentMethod('transfer')}
+                      className={`py-1.5 rounded-[4px] text-[11px] font-bold border transition-colors cursor-pointer ${posPaymentMethod === 'transfer' ? 'bg-jade text-white border-jade' : 'bg-surface-2 text-muted border-border'}`}
+                    >
+                      حوالة مصرفية
+                    </button>
+                  </div>
+                )}
 
                 {/* Confirm Sale Button or Open Shift Button */}
                 {!activeShift ? (
@@ -2615,7 +2849,8 @@ export function App() {
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* Products Manager tab */}
         {activeTab === 'Products' && (
@@ -2752,7 +2987,7 @@ export function App() {
         {/* Shifts tab */}
         {activeTab === 'Shifts' && (
           <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <span className="mono text-xs tracking-widest text-copper">
                   الخزينة والعمليات النقودية
@@ -2760,14 +2995,90 @@ export function App() {
                 <h1 className="text-3xl font-extrabold">التوكات والخزينة اليومية</h1>
               </div>
 
-              <button
-                onClick={() => setShowExpenseModal(true)}
-                className="flex items-center gap-2 py-2.5 px-4 bg-alert text-white rounded-control font-bold shadow-md hover:bg-red-600 transition-colors cursor-pointer"
-              >
-                <Icons.Plus />
-                <span>تسجيل مصروفات من الدرج</span>
-              </button>
+              <div className="flex items-center gap-3">
+                {activeShift ? (
+                  <>
+                    <button
+                      onClick={() => setShowCloseShiftModal(true)}
+                      className="flex items-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs text-white shadow-md transition-all cursor-pointer hover:scale-105"
+                      style={{ background: 'var(--copper)' }}
+                    >
+                      <span>🔒 إغلاق وجرد التوكة #{activeShift.id}</span>
+                    </button>
+                    <button
+                      onClick={() => setShowExpenseModal(true)}
+                      className="flex items-center gap-2 py-2.5 px-4 bg-alert text-white rounded-xl font-bold text-xs shadow-md hover:bg-red-600 transition-colors cursor-pointer"
+                    >
+                      <Icons.Plus />
+                      <span>تسجيل مصروفات</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowOpenShiftModal(true)}
+                    className="flex items-center gap-2 py-3 px-6 rounded-xl font-black text-sm text-white shadow-lg transition-all cursor-pointer hover:scale-105"
+                    style={{ background: 'var(--gradient-jade)' }}
+                  >
+                    <span>⚡ فتح توكة جديدة (درج الكاش)</span>
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Active Shift Status Overview Banner inside Shifts tab */}
+            {activeShift ? (
+              <div
+                className="p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4"
+                style={{ background: 'var(--surface)', borderColor: 'color-mix(in srgb, var(--jade) 30%, transparent)', boxShadow: 'var(--shadow-jade)' }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl flex items-center justify-center font-bold text-lg" style={{ background: 'var(--jade-glow)', color: 'var(--jade)' }}>
+                    #{activeShift.id}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 font-black text-base" style={{ color: 'var(--text)' }}>
+                      <span>التوكة الحالية نشطة</span>
+                      <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: 'var(--jade)' }} />
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      المسؤول: {activeShift.openedByUsername} · تاريخ الفتح: {new Date(activeShift.openedAt).toLocaleString('ar-LY')}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-6 text-sm">
+                  <div>
+                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>الرصيد الافتتاحي</div>
+                    <div className="mono font-black text-base" style={{ color: 'var(--text)' }}>{formatLYD(activeShift.openingCash)} د.ل</div>
+                  </div>
+                  <button
+                    onClick={() => setShowCloseShiftModal(true)}
+                    className="py-2 px-4 rounded-xl text-xs font-bold text-white transition-all cursor-pointer"
+                    style={{ background: 'var(--jade)' }}
+                  >
+                    إغلاق التوكة والجرد 🔒
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="p-6 rounded-2xl border text-center flex flex-col items-center justify-center gap-3"
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+              >
+                <div className="text-3xl">🔑</div>
+                <h3 className="font-display font-black text-lg" style={{ color: 'var(--text)' }}>لا توجد توكة مفتوحة حالياً</h3>
+                <p className="text-xs max-w-[450px]" style={{ color: 'var(--text-muted)' }}>
+                  قم بفتح توكة جديدة وتحديد المبلغ النقدي المتوفر بدراج الكاش للبدء بإنشاء الفواتير وتسجيل المبيعات والمصروفات.
+                </p>
+                <button
+                  onClick={() => setShowOpenShiftModal(true)}
+                  className="mt-2 py-3 px-6 rounded-xl font-black text-xs text-white shadow-md transition-all cursor-pointer hover:scale-105"
+                  style={{ background: 'var(--gradient-jade)' }}
+                >
+                  ⚡ فتح توكة جديدة الآن
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left detail card: Shift info */}

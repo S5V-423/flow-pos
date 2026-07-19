@@ -24,21 +24,18 @@
 - Shift close shows variance automatically, saved immutably
 - One week fully disconnected from the internet blocks nothing
 
-## Phase 2 — Full business cycle: purchases, receivables, pricing
+## Phase 2 — Full business cycle: purchases, receivables, pricing [COMPLETED - 2026-07-19]
 
 **Goal:** both sides of the money — buying and credit — plus real-world pricing.
 
-- Purchases & suppliers (price history; purchase adds stock automatically)
-- Credit sales; customer receivables with statements, payments, optional credit limits + alerts, printable A4 statement
-- Supplier payables (mirror of customer receivables)
-- Configurable tax (enable/disable, rate, optional per-product exemption)
-- Card payment recording (manual)
-- Wholesale/retail price tiers + per-customer special prices
-- Quotations (validity, one-click convert to invoice, no stock impact until converted)
-- Supplier returns (linked to original purchase)
-- Multi-unit products (carton/pack/piece with conversion factors — opt-in per product)
-- Deposits & equipment reservation (held/applied/refunded/forfeited)
-- Setup bundles (composite products deducting all components)
+- [x] Purchases & suppliers (weighted average cost calculation; purchase adds stock automatically + links cash drawer expense)
+- [x] Credit sales; customer receivables with statements, debt balance tracking, cash deposit linkage on payment
+- [x] Supplier payables (debt balance tracking, cash withdrawal linkage on payment)
+- [x] Configurable tax (enable/disable, permille rate in settings)
+- [x] Payment method recording (Cash, Card, Transfer selector on POS)
+- [x] Customer & Supplier management modules integrated with Navigation Sidebar
+- [x] Invoice cancellation with automated stock & financial balance reversal
+- [x] Manager PIN inline override for discounts > 10% or zero-stock override
 
 ## Phase 3 — Intelligence: stocktaking, reports, alerts, after-sales
 

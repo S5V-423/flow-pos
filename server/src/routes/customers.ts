@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { eq, desc } from 'drizzle-orm';
-import { customers, sales, auditLogs } from '../db/schema.js';
+import { customers, sales, auditLogs, shifts, cashMovements } from '../db/schema.js';
 import { authenticateRequest } from './auth.js';
 
 export async function customerRoutes(app: FastifyInstance) {
@@ -11,13 +11,16 @@ export async function customerRoutes(app: FastifyInstance) {
     return app.db.select().from(customers).orderBy(desc(customers.id)).all();
   });
 
-  // Create customer (manager only)
+  // Get single customer
+  app.get('/customers/:id', async (req, reply) => {
+    const id = Number((req.params as any).id);
+    const customer = app.db.select().from(customers).where(eq(customers.id, id)).get();
+    if (!customer) return reply.code(404).send({ error: 'not_found', message: 'العميل غير موجود' });
+    return customer;
+  });
+
+  // Create customer (manager & sales)
   app.post('/customers', async (req, reply) => {
-    if (req.user?.role !== 'manager') {
-      return reply
-        .code(403)
-        .send({ error: 'forbidden', message: 'إضافة العملاء متاحة للمدراء فقط' });
-    }
     const { name, phone, address, notes } = req.body as any;
     if (!name)
       return reply.code(400).send({ error: 'missing_fields', message: 'اسم العميل مطلوب' });
@@ -38,13 +41,15 @@ export async function customerRoutes(app: FastifyInstance) {
     app.db
       .insert(auditLogs)
       .values({
-        userId: req.user.userId,
+        userId: req.user!.userId,
         action: 'create_customer',
         details: `إضافة عميل: ${name}`,
         createdAt: now,
       })
       .run();
-    return { success: true, id: newId };
+    
+    const newCustomer = app.db.select().from(customers).where(eq(customers.id, newId)).get();
+    return newCustomer;
   });
 
   // Update customer
@@ -74,10 +79,7 @@ export async function customerRoutes(app: FastifyInstance) {
   });
 
   // Record a payment from customer (reduce credit balance)
-  app.post('/customers/:id/payment', async (req, reply) => {
-    if (req.user?.role !== 'manager') {
-      return reply.code(403).send({ error: 'forbidden', message: 'تسجيل المدفوعات للمدراء فقط' });
-    }
+  const handleCustomerPayment = async (req: any, reply: any) => {
     const id = Number((req.params as any).id);
     const { amount } = req.body as { amount: number };
     if (!amount || amount <= 0) return reply.code(400).send({ error: 'invalid_amount' });
@@ -89,6 +91,29 @@ export async function customerRoutes(app: FastifyInstance) {
     app.db.update(customers).set({ creditBalance: newBalance }).where(eq(customers.id, id)).run();
 
     const now = new Date().toISOString();
+
+    // Check active shift to register cash deposit
+    const activeShift = app.db
+      .select()
+      .from(shifts)
+      .where(eq(shifts.status, 'open'))
+      .limit(1)
+      .get();
+
+    if (activeShift) {
+      app.db
+        .insert(cashMovements)
+        .values({
+          shiftId: activeShift.id,
+          type: 'deposit',
+          amount: amount,
+          referenceId: `سداد عميل ${customer.name}`,
+          userId: req.user.userId,
+          createdAt: now,
+        })
+        .run();
+    }
+
     app.db
       .insert(auditLogs)
       .values({
@@ -100,7 +125,10 @@ export async function customerRoutes(app: FastifyInstance) {
       .run();
 
     return { success: true, newCreditBalance: newBalance };
-  });
+  };
+
+  app.post('/customers/:id/payment', handleCustomerPayment);
+  app.post('/customers/:id/payments', handleCustomerPayment);
 
   // Get customer's sales history
   app.get('/customers/:id/sales', async (req, _reply) => {

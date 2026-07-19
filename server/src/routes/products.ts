@@ -46,6 +46,20 @@ export async function productRoutes(app: FastifyInstance) {
     return product;
   });
 
+  // Get product by barcode
+  app.get('/products/barcode/:barcode', async (req, reply) => {
+    const { barcode } = req.params as { barcode: string };
+    const product = app.db
+      .select()
+      .from(products)
+      .where(eq(products.barcode, barcode))
+      .get();
+    if (!product) {
+      return reply.code(404).send({ error: 'not_found', message: 'المنتج غير موجود بهذا الباركود' });
+    }
+    return product;
+  });
+
   // Create product (manager only)
   app.post('/products', async (req, reply) => {
     if (req.user?.role !== 'manager') {
@@ -127,7 +141,13 @@ export async function productRoutes(app: FastifyInstance) {
       })
       .run();
 
-    return { id: newProductId, success: true };
+    const createdProduct = app.db
+      .select()
+      .from(products)
+      .where(eq(products.id, newProductId))
+      .get();
+
+    return createdProduct;
   });
 
   // Update product (manager only)

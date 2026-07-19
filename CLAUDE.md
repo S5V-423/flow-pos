@@ -4,7 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Phase 1 (MVP) is fully completed.** All slices (1–8) of the MVP build order are implemented, verified, typechecked, and built for production. Next is Phase 2 (Full business cycle: purchases, receivables, pricing).
+**Phase 1 (MVP) and Phase 2 (Full business cycle: purchases, receivables, credit sales, cash integration) are 100% fully completed, verified, typechecked, and built for production.**
+
+Key completed implementations:
+- **Offline Core**: Full Fastify + SQLite + Drizzle monorepo with 3-decimal milli-LYD monetary precision.
+- **Product & Stock**: Equipment vs Consumable branch fields, barcode search/scan, stock movements ledger, manual adjustments with manager PIN override.
+- **Cash Drawer & Shifts**: Shared drawer shift model, initial cash, cash expenses, shift closing with immutable variance audit.
+- **POS Invoicing & Print**: Gap-free sequential numbers (`INV-YYYY-NNNNN`), A4 invoices with QR + 80mm thermal receipts, invoice cancellation with stock & cash/credit reversal.
+- **Purchases & Suppliers**: Purchase invoices (`PUR-YYYY-NNNNN`), weighted average cost recalculations, stock addition, supplier debt tracking & payments linked to shift cash drawer.
+- **Customers & Credit Sales**: POS Cash vs Credit toggle, customer selector, customer debt tracking & payments linked to shift cash drawer deposit.
+- **Backup & System**: Local database backup & single-click restore, tax engine toggle, light/dark RTL UI.
+
+Next up is Phase 3 (Intelligence: barcode stocktaking sessions, charts & Excel/HTML/PDF export, notification center, warranty tickets).
 
 ## What This Project Is
 

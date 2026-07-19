@@ -10,6 +10,7 @@ import {
   shifts,
   settings,
   users,
+  customers,
 } from '../db/schema.js';
 import { authenticateRequest } from './auth.js';
 import { applyPermille, lineTotal } from '../lib/money.js';
@@ -65,6 +66,8 @@ export async function saleRoutes(app: FastifyInstance) {
   // Create a new cash/credit sale
   app.post('/sales', async (req, reply) => {
     const body = req.body as {
+      customerId?: number;
+      customerName?: string;
       items: Array<{
         productId: number;
         quantity: number;
@@ -72,15 +75,29 @@ export async function saleRoutes(app: FastifyInstance) {
         serialNumber?: string;
       }>;
       discount: number; // in milli-LYD
-      paymentType: 'cash' | 'credit';
-      paymentMethod: 'cash' | 'card' | 'transfer';
+      paymentType?: 'cash' | 'credit';
+      paymentMethod?: 'cash' | 'card' | 'transfer';
       overridePin?: string;
     };
 
-    const { items, discount = 0, paymentType = 'cash', paymentMethod = 'cash', overridePin } = body;
+    const {
+      customerId,
+      customerName,
+      items,
+      discount = 0,
+      paymentType = 'cash',
+      paymentMethod = 'cash',
+      overridePin,
+    } = body;
 
     if (!items || items.length === 0) {
       return reply.code(400).send({ error: 'empty_cart', message: 'السلة فارغة' });
+    }
+
+    if (paymentType === 'credit' && !customerId) {
+      return reply
+        .code(400)
+        .send({ error: 'customer_required', message: 'يجب اختيار العميل لتسجيل فاتورة بيع آجل (دين)' });
     }
 
     // 1. Must check for active shift
@@ -134,6 +151,16 @@ export async function saleRoutes(app: FastifyInstance) {
       const result = app.sqlite.transaction(() => {
         const now = new Date().toISOString();
 
+        // Check customer existence if customerId provided
+        let targetCustomerName = customerName || null;
+        if (customerId) {
+          const cust = app.db.select().from(customers).where(eq(customers.id, customerId)).get();
+          if (!cust) {
+            throw new Error(`customer_not_found:${customerId}`);
+          }
+          targetCustomerName = cust.name;
+        }
+
         // Verification step inside transaction
         for (const item of items) {
           const product = app.db
@@ -170,6 +197,8 @@ export async function saleRoutes(app: FastifyInstance) {
           .insert(sales)
           .values({
             invoiceNumber,
+            customerId: customerId || null,
+            customerName: targetCustomerName,
             userId: req.user!.userId,
             shiftId: activeShift.id,
             paymentType,
@@ -184,6 +213,16 @@ export async function saleRoutes(app: FastifyInstance) {
           .run();
 
         const saleId = Number(saleInsert.lastInsertRowid);
+
+        // Update customer debt balance if credit sale
+        if (paymentType === 'credit' && customerId) {
+          const cust = app.db.select().from(customers).where(eq(customers.id, customerId)).get()!;
+          app.db
+            .update(customers)
+            .set({ creditBalance: cust.creditBalance + total })
+            .where(eq(customers.id, customerId))
+            .run();
+        }
 
         // Process each item
         for (const item of items) {
@@ -230,7 +269,7 @@ export async function saleRoutes(app: FastifyInstance) {
         }
 
         // Cash flow movement (only for cash payments)
-        if (paymentMethod === 'cash') {
+        if (paymentType === 'cash' && paymentMethod === 'cash') {
           app.db
             .insert(cashMovements)
             .values({
@@ -375,8 +414,17 @@ export async function saleRoutes(app: FastifyInstance) {
             .run();
         }
 
+        // Reverse customer debt if credit sale
+        if (sale.paymentType === 'credit' && sale.customerId) {
+          const cust = app.db.select().from(customers).where(eq(customers.id, sale.customerId)).get();
+          if (cust) {
+            const newBal = Math.max(0, cust.creditBalance - sale.total);
+            app.db.update(customers).set({ creditBalance: newBal }).where(eq(customers.id, sale.customerId)).run();
+          }
+        }
+
         // Reverse cash (only if original payment was cash)
-        if (sale.paymentMethod === 'cash') {
+        if (sale.paymentType === 'cash' && sale.paymentMethod === 'cash') {
           app.db
             .insert(cashMovements)
             .values({
@@ -401,7 +449,7 @@ export async function saleRoutes(app: FastifyInstance) {
           })
           .run();
 
-        return { success: true };
+        return { success: true, status: 'cancelled' };
       })();
 
       return result;
