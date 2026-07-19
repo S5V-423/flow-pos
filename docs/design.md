@@ -78,8 +78,8 @@ All fonts **bundled locally as woff2** (`/public/fonts/`) via `@font-face` — t
 
 | Role    | Face               | Weights | Usage                                                       |
 | ------- | ------------------ | ------- | ----------------------------------------------------------- |
-| Display | **Cairo**          | 600–900 | Screen titles, card headings, stamps, money-confirm buttons |
-| Body    | **Tajawal**        | 300–700 | Everything readable: body, forms, tables, nav               |
+| Display | **Cairo** / **Readex Pro** | 600–900 | Screen titles, brochure reports, card headings, stamps, money-confirm buttons |
+| Body    | **Tajawal** / **Readex Pro** | 300–700 | Everything readable: body, forms, tables, brochure reports, nav |
 | Data    | **JetBrains Mono** | 400–700 | Numbers, prices, quantities, barcodes, refs, receipt lines  |
 
 ### Type scale (rem, base 16px)
@@ -180,7 +180,7 @@ Words are design material. Written in Arabic, from the cashier's side of the cou
 
 Shared identity: logo/name (Settings) top-start, mono doc number + date top-end, dashed dividers, mono amounts, jade grand total (black in print), status stamp when applicable, QR bottom-start, payment pill bottom-end, perforated edge motif.
 
-- **A4 invoice / quotation / statement:** `@page { size: A4; margin: 15mm }`; black-on-white, independent of theme tokens; Cairo headings ≥11pt, body 10pt, mono 10pt; stamps print as black outline unless color-printed; RTL alignment verified on physical printers (PRD acceptance).
+- **A4 equipment invoice / quotation / customer statement:** `@page { size: A4; margin: 15mm }`; black-on-white, independent of theme tokens; Cairo/Readex Pro headings ≥11pt, body 10pt, mono 10pt; equipment invoices feature model name, serial numbers, warranty terms, stamp title, and Arabic `Tafqeet` currency spelling; statements feature running account balance ledger; stamps print as black outline unless color-printed; RTL alignment verified on physical printers (PRD acceptance).
 - **80mm thermal receipt:** 72mm printable, single column, Tajawal 9pt / mono 9pt, pure black only, dashed separators, QR ≥20mm, generous feed. Kiosk-print mode — no dialog. The printed receipt and the on-screen receipt cart are visibly the same artifact.
 
 ## 12. Charts (Phase 3)

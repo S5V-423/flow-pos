@@ -87,6 +87,8 @@ Each slice is shippable and testable end-to-end:
 10. **Customer Credit & Receivables** [Completed] — customer database CRUD, customer balance tracking, POS cash vs credit toggle, customer debt payment modal with automatic cash drawer deposit registration.
 11. **Transactional Reversals & Security** [Completed] — invoice cancellation with full stock restoration and financial debt/cash reversal, manager PIN verification inline override for high discounts (>10%) and stock overrides.
 12. **Navigation & Navigation UX** [Completed] — main navigation bar with dynamic breadcrumbs, sidebar shortcuts for Purchases/Suppliers and Customers/Receivables.
+13. **A4 Equipment Invoicing & Financial Statements** [Completed] — A4 printable equipment sales invoice layout with serial numbers, model details, warranty terms, stamp title, and Arabic `Tafqeet` currency spelling; customer statement of account modal with exportable A4 running balance ledger.
+14. **System Settings & Database Migration 0004** [Completed] — extended Settings schema & UI (`businessSubtitle`, `businessPhone2`, `warrantyTerms`, `stampTitle`) with DB migration `0004_dashing_tarot.sql`.
 
 ## 4. Testing Strategy
 

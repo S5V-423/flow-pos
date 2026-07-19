@@ -18,8 +18,12 @@ export async function settingsRoutes(app: FastifyInstance) {
 
     const body = req.body as {
       businessName?: string;
+      businessSubtitle?: string;
       businessPhone?: string;
+      businessPhone2?: string;
       businessAddress?: string;
+      warrantyTerms?: string;
+      stampTitle?: string;
       taxEnabled?: boolean;
       taxRatePermille?: number;
     };
@@ -33,9 +37,13 @@ export async function settingsRoutes(app: FastifyInstance) {
       .update(settings)
       .set({
         businessName: body.businessName !== undefined ? body.businessName : row.businessName,
+        businessSubtitle: body.businessSubtitle !== undefined ? body.businessSubtitle : row.businessSubtitle,
         businessPhone: body.businessPhone !== undefined ? body.businessPhone : row.businessPhone,
+        businessPhone2: body.businessPhone2 !== undefined ? body.businessPhone2 : row.businessPhone2,
         businessAddress:
           body.businessAddress !== undefined ? body.businessAddress : row.businessAddress,
+        warrantyTerms: body.warrantyTerms !== undefined ? body.warrantyTerms : row.warrantyTerms,
+        stampTitle: body.stampTitle !== undefined ? body.stampTitle : row.stampTitle,
         taxEnabled: body.taxEnabled !== undefined ? body.taxEnabled : row.taxEnabled,
         taxRatePermille:
           body.taxRatePermille !== undefined ? body.taxRatePermille : row.taxRatePermille,

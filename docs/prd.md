@@ -68,7 +68,8 @@ Operational note: fast **PIN login** per employee on the same shared device at s
 ### Phase 2
 
 - **Purchases & suppliers** — supplier registry with price history; purchase invoice adds stock automatically; supplier payables mirror customer receivables.
-- **Customers & receivables** — optional credit limit; live statement (credit invoices, payments, balance); alert near/over limit; printable A4 statement.
+- **Customers & receivables** — optional credit limit; live statement (credit invoices, payments, balance); alert near/over limit; printable A4 statement of account.
+- **Specialized A4 Equipment Invoices** — branded A4 equipment invoice template; model, serial number, warranty terms, stamp title, and Arabic `Tafqeet` currency text.
 - **Tax & payment** — enable/disable tax, rate set in settings; optional per-product exemption; cash or card (manual recording).
 - **Multi-unit sales (carton ↔ piece)** — base unit + packaging units with conversion factors; independent price per unit; stock always deducted in base unit; opt-in per product.
 - **Wholesale/retail pricing** — two prices per product; customer tier picks the default; per-customer special price overrides the tier.

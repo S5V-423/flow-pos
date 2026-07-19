@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { currentTheme, toggleTheme, type Theme } from './theme';
+import { tafqeetLYD } from './lib/tafqeet';
 
 // Types
 type Product = {
@@ -87,8 +88,12 @@ type User = {
 
 type Settings = {
   businessName: string;
+  businessSubtitle?: string;
   businessPhone?: string;
+  businessPhone2?: string;
   businessAddress?: string;
+  warrantyTerms?: string;
+  stampTitle?: string;
   taxEnabled: boolean;
   taxRatePermille: number;
   currency: string;
@@ -503,6 +508,14 @@ export function App() {
   const [payingCustomer, setPayingCustomer] = useState<Customer | null>(null);
   const [customerPaymentAmount, setCustomerPaymentAmount] = useState('0.000');
 
+  // Customer Account Statement Modal State
+  const [showCustomerStatementModal, setShowCustomerStatementModal] = useState(false);
+  const [statementCustomer, setStatementCustomer] = useState<Customer | null>(null);
+  const [statementData, setStatementData] = useState<any | null>(null);
+  const [statementLoading, setStatementLoading] = useState(false);
+  const [statementFilterStart, setStatementFilterStart] = useState('');
+  const [statementFilterEnd, setStatementFilterEnd] = useState('');
+
   // Suppliers State
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -522,8 +535,15 @@ export function App() {
     notes: '',
   });
 
-  // Print Mode (A4 vs 80mm thermal)
+  // Print Mode & Template Switcher Options
   const [printMode, setPrintMode] = useState<'a4' | 'thermal'>('a4');
+  const [invoiceTemplateMode, setInvoiceTemplateMode] = useState<'equipment_a4' | 'classic_a4' | 'thermal'>('equipment_a4');
+  const [overrideCustomerName, setOverrideCustomerName] = useState('');
+  const [overrideSubtitle, setOverrideSubtitle] = useState('');
+  const [overridePhone2, setOverridePhone2] = useState('');
+  const [overrideWarrantyNotes, setOverrideWarrantyNotes] = useState('');
+  const [overrideStampTitle, setOverrideStampTitle] = useState('');
+  const [showInvoiceControls, setShowInvoiceControls] = useState(false);
 
   // Shift close summary
   const [shiftCloseSummary, setShiftCloseSummary] = useState<any>(null);
@@ -733,8 +753,8 @@ export function App() {
     }
   }, [activeTab]);
 
-  // API Call Wrapper for Mutations
-  const apiCall = async (url: string, method: string, body: any) => {
+  // API Call Wrapper for Mutations & Queries
+  const apiCall = async (url: string, method: string = 'GET', body?: any) => {
     if (!token) return { success: false, error: 'no_token' };
     try {
       const response = await fetch(url, {
@@ -743,7 +763,7 @@ export function App() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(body),
+        body: body ? JSON.stringify(body) : undefined,
       });
       if (response.status === 401) {
         handleLogout();
@@ -1335,6 +1355,26 @@ export function App() {
       refreshAllData();
     } else {
       triggerToast(res.error || 'فشل تسجيل السداد', 'alert');
+    }
+  };
+
+  // Fetch & Open Customer Account Statement
+  const openCustomerStatement = async (c: Customer) => {
+    setStatementCustomer(c);
+    setStatementLoading(true);
+    setShowCustomerStatementModal(true);
+    setStatementFilterStart('');
+    setStatementFilterEnd('');
+    try {
+      const res = await apiCall(`/api/customers/${c.id}/statement`, 'GET');
+      if (res && res.success && res.data) {
+        setStatementData(res.data);
+      }
+    } catch (e) {
+      console.error(e);
+      triggerToast('فشل جلب كشف حساب العميل', 'alert');
+    } finally {
+      setStatementLoading(false);
     }
   };
 
@@ -2357,6 +2397,14 @@ export function App() {
                           </span>
                         </td>
                         <td className="p-3 flex gap-2">
+                          <button
+                            onClick={() => openCustomerStatement(c)}
+                            className="px-2.5 py-1 text-xs bg-purple-600/10 text-purple-700 border border-purple-600/30 rounded font-bold hover:bg-purple-600/20 cursor-pointer flex items-center gap-1"
+                            title="سحب كشف حساب تفصيلي بمقياس A4"
+                          >
+                            <Icons.Receipt className="h-3.5 w-3.5" />
+                            <span>كشف حساب (A4)</span>
+                          </button>
                           {c.creditBalance > 0 && (
                             <button
                               onClick={() => {

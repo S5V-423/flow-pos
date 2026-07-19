@@ -30,8 +30,11 @@
 
 - [x] Purchases & suppliers (weighted average cost calculation; purchase adds stock automatically + links cash drawer expense)
 - [x] Credit sales; customer receivables with statements, debt balance tracking, cash deposit linkage on payment
+- [x] Customer statement of account (A4 printable running balance ledger)
+- [x] Specialized A4 Equipment Invoicing (model, serial numbers, warranty terms, stamp, Arabic Tafqeet currency spelling)
 - [x] Supplier payables (debt balance tracking, cash withdrawal linkage on payment)
 - [x] Configurable tax (enable/disable, permille rate in settings)
+- [x] Business Branding Customization (subtitle, secondary phone, warranty terms, stamp title)
 - [x] Payment method recording (Cash, Card, Transfer selector on POS)
 - [x] Customer & Supplier management modules integrated with Navigation Sidebar
 - [x] Invoice cancellation with automated stock & financial balance reversal

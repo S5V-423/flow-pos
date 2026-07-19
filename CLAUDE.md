@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Phase 1 (MVP) and Phase 2 (Full business cycle: purchases, receivables, credit sales, cash integration) are 100% fully completed, verified, typechecked, and built for production.**
+**Phase 1 (MVP) and Phase 2 (Full business cycle: purchases, receivables, credit sales, cash integration, A4 equipment invoicing, customer statements) are 100% fully completed, verified, typechecked, and built for production.**
 
 Key completed implementations:
-- **Offline Core**: Full Fastify + SQLite + Drizzle monorepo with 3-decimal milli-LYD monetary precision.
+- **Offline Core**: Full Fastify + SQLite + Drizzle monorepo with 3-decimal milli-LYD monetary precision and migration `0004_dashing_tarot.sql`.
 - **Product & Stock**: Equipment vs Consumable branch fields, barcode search/scan, stock movements ledger, manual adjustments with manager PIN override.
 - **Cash Drawer & Shifts**: Shared drawer shift model, initial cash, cash expenses, shift closing with immutable variance audit.
-- **POS Invoicing & Print**: Gap-free sequential numbers (`INV-YYYY-NNNNN`), A4 invoices with QR + 80mm thermal receipts, invoice cancellation with stock & cash/credit reversal.
+- **POS Invoicing & Print**: Gap-free sequential numbers (`INV-YYYY-NNNNN`), specialized A4 equipment invoices (with model, serial numbers, warranty terms, Arabic `Tafqeet` currency spelling, and company stamp), 80mm thermal receipts, invoice cancellation with stock & cash/credit reversal.
 - **Purchases & Suppliers**: Purchase invoices (`PUR-YYYY-NNNNN`), weighted average cost recalculations, stock addition, supplier debt tracking & payments linked to shift cash drawer.
-- **Customers & Credit Sales**: POS Cash vs Credit toggle, customer selector, customer debt tracking & payments linked to shift cash drawer deposit.
-- **Backup & System**: Local database backup & single-click restore, tax engine toggle, light/dark RTL UI.
+- **Customers & Credit Sales**: POS Cash vs Credit toggle, customer selector, customer debt tracking, customer statement of account (A4 exportable running balance), payments linked to shift cash drawer deposit.
+- **Branding & System Settings**: Full customization of business name, subtitle, secondary phone, warranty terms, stamp title, local database backup & single-click restore, tax engine toggle, light/dark RTL UI, and Readex Pro font reporting.
 
 Next up is Phase 3 (Intelligence: barcode stocktaking sessions, charts & Excel/HTML/PDF export, notification center, warranty tickets).
 

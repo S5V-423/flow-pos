@@ -7,8 +7,12 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 export const settings = sqliteTable('settings', {
   id: integer('id').primaryKey(),
   businessName: text('business_name').notNull().default('اسم النشاط التجاري'),
+  businessSubtitle: text('business_subtitle'),
   businessPhone: text('business_phone'),
+  businessPhone2: text('business_phone2'),
   businessAddress: text('business_address'),
+  warrantyTerms: text('warranty_terms'),
+  stampTitle: text('stamp_title'),
   logoPath: text('logo_path'),
   taxEnabled: integer('tax_enabled', { mode: 'boolean' }).notNull().default(false),
   taxRatePermille: integer('tax_rate_permille').notNull().default(0),
@@ -122,6 +126,19 @@ export const customers = sqliteTable('customers', {
   phone: text('phone'),
   address: text('address'),
   creditBalance: integer('credit_balance').notNull().default(0), // milli-LYD owed to us
+  notes: text('notes'),
+  createdAt: text('created_at').notNull(),
+});
+
+export const customerPayments = sqliteTable('customer_payments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  customerId: integer('customer_id')
+    .notNull()
+    .references(() => customers.id),
+  amount: integer('amount').notNull(), // milli-LYD
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
   notes: text('notes'),
   createdAt: text('created_at').notNull(),
 });
