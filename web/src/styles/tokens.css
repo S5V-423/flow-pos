@@ -2,94 +2,144 @@
  * Design tokens — source of truth: docs/design.md §3–§6.
  * Three-layer theme mechanism: :root defaults → prefers-color-scheme → [data-theme] (toggle wins).
  * Components consume tokens only; no raw hex outside this file.
+ *
+ * IDENTITY: Warm luxury Arabic paper-ledger feel.
+ * Light: warm parchment / cream + deep emerald brand + burnished gold accents
+ * Dark:  rich coffee-dark / deep espresso + bright emerald + warm gold
  */
 
 :root {
-  /* Core palette — light */
-  --bg: #f3f4ef;
-  --surface: #ffffff;
-  --surface-2: #eaebe3;
-  --paper: #fffef8; /* documents & receipt cart — identical in both themes */
-  --ink: #1c1b16; /* text on --paper — always ink on paper */
-  --text: #181a15;
-  --text-muted: #5b5f53;
-  --border: #dbdcd1;
-  --jade: #0e8f68;
-  --jade-2: #0b6e51;
-  --copper: #b5711e;
-  --copper-2: #8f5a16;
-  --alert: #c1421a;
+  /* ── Core Palette – Light ─────────────────────────────────────────── */
+  --bg:        #F5F2EC;   /* Warm parchment — slightly cream-tinted paper */
+  --surface:   #FDFCF8;   /* Off-white card surface, warm white */
+  --surface-2: #EDEBE3;   /* Aged paper tone for table headers, input wells */
+  --paper:     #FFFEF9;   /* Receipt / document — always warm white */
+  --ink:       #1A1710;   /* Deep ink for document text */
+  --text:      #1C1A14;   /* Primary body text — deep warm black */
+  --text-muted:#6B6657;   /* Muted umber-warm gray */
+  --border:    #D9D5C9;   /* Warm stone border */
 
-  /* Stamp ink never changes with theme (design.md §3) */
-  --stamp-paid: #0e8f68;
-  --stamp-pending: #b5711e;
-  --stamp-void: #c1421a;
+  /* ── Brand Colors ────────────────────────────────────────────────── */
+  --jade:      #0A7B5B;   /* Deep rich emerald green — primary brand */
+  --jade-2:    #086148;   /* Pressed / hover jade */
+  --jade-glow: rgba(10, 123, 91, 0.12);
 
-  --shadow: 0 10px 30px -12px rgba(20, 20, 10, 0.18);
-  --radius-card: 14px;
+  --copper:    #B87333;   /* Burnished copper / warm gold — secondary brand */
+  --copper-2:  #8F5A26;   /* Pressed copper */
+  --copper-glow: rgba(184, 115, 51, 0.12);
+
+  --alert:     #B83232;   /* Deep crimson alert */
+  --alert-glow: rgba(184, 50, 50, 0.10);
+
+  /* ── Stamp Inks (for document status stamps) ─────────────────────── */
+  --stamp-paid:    #0A7B5B;
+  --stamp-pending: #B87333;
+  --stamp-void:    #B83232;
+
+  /* ── Shadows & Elevation ─────────────────────────────────────────── */
+  --shadow-sm:   0 1px 4px rgba(26, 23, 16, 0.06), 0 1px 2px rgba(26, 23, 16, 0.04);
+  --shadow:      0 4px 20px -4px rgba(26, 23, 16, 0.10), 0 2px 8px rgba(26, 23, 16, 0.06);
+  --shadow-md:   0 8px 32px -6px rgba(26, 23, 16, 0.14), 0 3px 12px rgba(26, 23, 16, 0.08);
+  --shadow-jade: 0 4px 20px -4px rgba(10, 123, 91, 0.25);
+
+  /* ── Shape ───────────────────────────────────────────────────────── */
+  --radius-card:    16px;
   --radius-control: 10px;
-  --radius-doc: 4px;
+  --radius-doc:     4px;
 
-  /* Density: touch (default) — see design.md §6 */
-  --control-h: 48px;
+  /* ── Density: touch (default) — see design.md §6 ────────────────── */
+  --control-h:    48px;
   --control-h-lg: 56px;
-  --font-base: 15px;
-  --row-pad: 14px;
-  --grid-gap: 16px;
+  --font-base:    15px;
+  --row-pad:      14px;
+  --grid-gap:     16px;
+
+  /* ── Gradients ───────────────────────────────────────────────────── */
+  --gradient-brand: linear-gradient(135deg, #0A7B5B 0%, #0E9E74 50%, #B87333 100%);
+  --gradient-jade:  linear-gradient(135deg, #0A7B5B 0%, #0E9E74 100%);
+  --gradient-warm:  linear-gradient(135deg, #1C1A14 0%, #2A2318 100%);
+  --gradient-sidebar: linear-gradient(180deg, #FDFCF8 0%, #F5F2EC 100%);
 }
 
+/* ── Dark Theme ──────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15110d;
-    --surface: #1e1911;
-    --surface-2: #241e15;
-    --text: #f2efe6;
-    --text-muted: #a79e8a;
-    --border: #332b1f;
-    --jade: #2bc792;
-    --jade-2: #3fe0aa;
-    --copper: #e0a44c;
-    --copper-2: #f0be73;
-    --alert: #ff7a4d;
-    --shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.55);
+    --bg:        #18140E;   /* Deep espresso / coffee-black */
+    --surface:   #221C14;   /* Dark leather surface */
+    --surface-2: #2C2418;   /* Nested dark mahogany */
+    --paper:     #FFFEF9;   /* Documents stay warm paper-white */
+    --ink:       #1A1710;
+    --text:      #F0EBE0;   /* Warm cream text */
+    --text-muted:#8C8070;   /* Muted warm stone */
+    --border:    #362E22;   /* Dark walnut border */
+
+    --jade:      #1DB885;   /* Bright emerald in dark */
+    --jade-2:    #26D49A;
+    --jade-glow: rgba(29, 184, 133, 0.15);
+
+    --copper:    #D49440;   /* Bright burnished gold in dark */
+    --copper-2:  #E8AA55;
+    --copper-glow: rgba(212, 148, 64, 0.15);
+
+    --alert:     #E85252;
+    --alert-glow: rgba(232, 82, 82, 0.12);
+
+    --shadow-sm:   0 1px 4px rgba(0,0,0, 0.30), 0 1px 2px rgba(0,0,0, 0.20);
+    --shadow:      0 4px 20px -4px rgba(0,0,0, 0.40), 0 2px 8px rgba(0,0,0, 0.25);
+    --shadow-md:   0 8px 32px -6px rgba(0,0,0, 0.55), 0 3px 12px rgba(0,0,0, 0.30);
+    --shadow-jade: 0 4px 20px -4px rgba(29, 184, 133, 0.30);
+
+    --gradient-sidebar: linear-gradient(180deg, #221C14 0%, #18140E 100%);
   }
 }
 
+/* ── Explicit Light Override ─────────────────────────────────────────── */
 :root[data-theme='light'] {
-  --bg: #f3f4ef;
-  --surface: #ffffff;
-  --surface-2: #eaebe3;
-  --text: #181a15;
-  --text-muted: #5b5f53;
-  --border: #dbdcd1;
-  --jade: #0e8f68;
-  --jade-2: #0b6e51;
-  --copper: #b5711e;
-  --copper-2: #8f5a16;
-  --alert: #c1421a;
-  --shadow: 0 10px 30px -12px rgba(20, 20, 10, 0.18);
+  --bg:        #F5F2EC;
+  --surface:   #FDFCF8;
+  --surface-2: #EDEBE3;
+  --text:      #1C1A14;
+  --text-muted:#6B6657;
+  --border:    #D9D5C9;
+  --jade:      #0A7B5B;
+  --jade-2:    #086148;
+  --jade-glow: rgba(10, 123, 91, 0.12);
+  --copper:    #B87333;
+  --copper-2:  #8F5A26;
+  --copper-glow: rgba(184, 115, 51, 0.12);
+  --alert:     #B83232;
+  --shadow-sm: 0 1px 4px rgba(26, 23, 16, 0.06), 0 1px 2px rgba(26, 23, 16, 0.04);
+  --shadow:    0 4px 20px -4px rgba(26, 23, 16, 0.10), 0 2px 8px rgba(26, 23, 16, 0.06);
+  --shadow-md: 0 8px 32px -6px rgba(26, 23, 16, 0.14), 0 3px 12px rgba(26, 23, 16, 0.08);
+  --gradient-sidebar: linear-gradient(180deg, #FDFCF8 0%, #F5F2EC 100%);
 }
 
+/* ── Explicit Dark Override ──────────────────────────────────────────── */
 :root[data-theme='dark'] {
-  --bg: #15110d;
-  --surface: #1e1911;
-  --surface-2: #241e15;
-  --text: #f2efe6;
-  --text-muted: #a79e8a;
-  --border: #332b1f;
-  --jade: #2bc792;
-  --jade-2: #3fe0aa;
-  --copper: #e0a44c;
-  --copper-2: #f0be73;
-  --alert: #ff7a4d;
-  --shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.55);
+  --bg:        #18140E;
+  --surface:   #221C14;
+  --surface-2: #2C2418;
+  --text:      #F0EBE0;
+  --text-muted:#8C8070;
+  --border:    #362E22;
+  --jade:      #1DB885;
+  --jade-2:    #26D49A;
+  --jade-glow: rgba(29, 184, 133, 0.15);
+  --copper:    #D49440;
+  --copper-2:  #E8AA55;
+  --copper-glow: rgba(212, 148, 64, 0.15);
+  --alert:     #E85252;
+  --shadow-sm: 0 1px 4px rgba(0,0,0, 0.30), 0 1px 2px rgba(0,0,0, 0.20);
+  --shadow:    0 4px 20px -4px rgba(0,0,0, 0.40), 0 2px 8px rgba(0,0,0, 0.25);
+  --shadow-md: 0 8px 32px -6px rgba(0,0,0, 0.55), 0 3px 12px rgba(0,0,0, 0.30);
+  --gradient-sidebar: linear-gradient(180deg, #221C14 0%, #18140E 100%);
 }
 
-/* Compact density for back-office tables & reports (design.md §6) */
+/* ── Compact Density (back-office tables & reports) ────────────────── */
 [data-density='compact'] {
-  --control-h: 36px;
+  --control-h:    36px;
   --control-h-lg: 36px;
-  --font-base: 13.5px;
-  --row-pad: 8px;
-  --grid-gap: 10px;
+  --font-base:    13.5px;
+  --row-pad:      8px;
+  --grid-gap:     10px;
 }
